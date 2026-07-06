@@ -85,10 +85,20 @@ func cmdInit() {
 			os.Exit(1)
 		}
 	} else {
+		isExistingHarness := false
 		for _, e := range entries {
 			if e.Name() == "AGENT.md" || e.Name() == "feature_list.json" {
-				fmt.Fprintf(os.Stderr, "Error: target already contains a harness project\n")
-				os.Exit(1)
+				isExistingHarness = true
+				break
+			}
+		}
+		if isExistingHarness {
+			fmt.Println("  Existing harness project detected, overwriting agent directories...")
+			for _, t := range chosen {
+				agentDir := filepath.Join(absTarget, t.dir, "agents")
+				if err := os.RemoveAll(agentDir); err != nil {
+					fmt.Fprintf(os.Stderr, "  Warning: could not clean %s: %v\n", agentDir, err)
+				}
 			}
 		}
 	}
@@ -161,21 +171,23 @@ func cmdInit() {
 	fmt.Println("  3. Read AGENT.md to understand the workflow")
 }
 
-// agentsSubdir define dónde van los archivos de agentes según la herramienta.
-func agentsSubdir(toolDir string) string {
-	return "agents"
-}
-
 // copyAgentToTools copia un archivo de agente a todas las herramientas seleccionadas.
 func copyAgentToTools(data []byte, filename, absTarget string, want map[string]bool) error {
 	for toolDir := range want {
-		sub := agentsSubdir(toolDir)
+		gen, ok := generators[toolDir]
+		if !ok {
+			continue
+		}
+
+		sub := gen.GetSubdir()
 		dir := filepath.Join(absTarget, toolDir, sub)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
+
+		transformed := gen.Transform(data)
 		dest := filepath.Join(dir, filename)
-		if err := os.WriteFile(dest, data, 0644); err != nil {
+		if err := os.WriteFile(dest, transformed, 0644); err != nil {
 			return err
 		}
 		fmt.Printf("  Created %s/%s/%s\n", toolDir, sub, filename)

@@ -13,6 +13,7 @@ implementar.
 - ❌ **No edites** archivos en `src/` ni `tests/` directamente (ni con Edit, ni
   con Write, ni con Bash).
 - ❌ **No marques** features como `done` en `feature_list.json`.
+- ❌ **No salgas del proyecto actual, solo desplasarte dentro de las carpeta y subcarpetas del directorio actual. Solicitar permiso del usuario en caso de que sea necesario moverse.
 - ❌ **No saltes la fase de spec.** Toda feature con `"sdd": true` debe
   pasar por `sdd_agent_author` antes de cualquier implementación.
 - ❌ **No saltes la puerta de aprobación humana** entre `spec_ready` e

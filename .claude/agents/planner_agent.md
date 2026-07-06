@@ -39,6 +39,7 @@ Guarda las respuestas en `progress/project-definition.md`.
 
 Genera (o actualiza) `feature_list.json` con estas reglas:
 
+- **Las feauteres son lo mas simples y descompuestas posibles, si ves que una feature es compleja, descomponla en varias features.**
 - **Vertical slices**: cada feature atraviesa toda la capa (API/lógica/datos).
 - **Independientemente implementable** y testeable por sí sola.
 - **Con valor visible** para el usuario al completarla.

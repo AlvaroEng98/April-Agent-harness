@@ -23,9 +23,7 @@ var knownTools = []struct {
 	dir    string // carpeta a crear en el proyecto
 }{
 	{"Claude Code", "claude", ".claude"},
-	{"Cursor", "cursor", ".cursor"},
 	{"OpenCode", "opencode", ".opencode"},
-	{"Pi", "pi", ".pi"},
 }
 
 type detectedTool struct {

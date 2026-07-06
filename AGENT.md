@@ -35,6 +35,7 @@
 ## 3. Reglas duras (no negociables)
 
 - **Una sola feature a la vez.** No mezcles cambios de varias tareas en la misma sesión.
+- **No salgas del proyecto actual, solo desplasarte dentro de las carpeta y subcarpetas del directorio actual. Solicitar permiso del usuario en caso de que sea necesario moverse.
 - **No declares una tarea `done` sin pruebas verdes.** Ejecuta `./init.sh` y
   asegúrate de que el bloque de tests pasa al 100%.
 - **No saltes la fase de spec.** Toda feature con `"sdd": true` debe pasar
