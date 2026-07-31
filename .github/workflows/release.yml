@@ -26,6 +26,17 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # Las notas salen de CHANGELOG.md (versionado), no de feature_list.json
+      # (gitignoreado, ausente en el checkout). goreleaser las consume via
+      # release.header -> {{ .Env.RELEASE_NOTES }}.
+      - name: Notas de release desde CHANGELOG.md
+        run: |
+          {
+            echo "RELEASE_NOTES<<GORELEASER_EOF"
+            ./release-notes.sh "${GITHUB_REF_NAME}"
+            echo "GORELEASER_EOF"
+          } >> "$GITHUB_ENV"
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"

@@ -20,10 +20,14 @@ venv/
 /HarnessInit
 *.exe
 
-# Project
+# Project — estado de trabajo del harness (dev, no producto).
+# El backlog vivo no se versiona: el registro de lo entregado va a
+# CHANGELOG.md via ./sync-changelog.sh. Anclado con "/" para no tragarse
+# templates/feature_list.json, que SI va versionado (lo necesita go:embed).
+/feature_list.json
 progress/*.md
-!progress/current.md
-!progress/history.md
+progress/current.md
+progress/history.md
 harness-backend
 
 # Working notes / session artifacts (not product source)
@@ -31,10 +35,12 @@ ANALISIS.md
 mejoras.md
 RECAP_*.md
 
-# Agent-generated docs at repo root (canonical copies live in docs/)
-architecture.md
-conventions.md
-verification.md
+# Agent-generated docs at repo root (canonical copies live in docs/).
+# Anclados con "/" a proposito: sin la barra el patron matchea a cualquier
+# profundidad y se traga templates/docs/*.md, que SI deben ir versionados
+# porque go:embed los necesita para scaffoldear.
+/architecture.md
+/conventions.md
+/verification.md
 
-# Opencode plugin dependencies
-.opencode/node_modules/
+

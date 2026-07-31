@@ -8,8 +8,8 @@
 #   3. "Sesión activa: <name> (<status>)"  ó  "No hay sesión activa"
 #
 # Este script es el único punto de verdad del recap: lo consumen tanto
-# init.sh (§5) como los hooks/plugins de Claude Code y OpenCode. No debe
-# duplicarse su lógica en ningún otro lugar.
+# init.sh (§5) como el SessionStart hook de Claude Code. No debe duplicarse
+# su lógica en ningún otro lugar.
 #
 # Se auto-localiza al inicio para que las rutas relativas internas resuelvan
 # siempre contra la raíz del proyecto, sin importar desde dónde se invoque.

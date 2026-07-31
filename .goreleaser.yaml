@@ -19,15 +19,16 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: "checksums.txt"
+# El changelog automático de commits queda desactivado: las notas salen de
+# CHANGELOG.md, que es el registro curado de features entregadas. El workflow
+# de release extrae la sección de la versión con ./release-notes.sh y la
+# expone como RELEASE_NOTES. No se lee feature_list.json porque no está
+# versionado (es estado de desarrollo) y el checkout de CI no lo tiene.
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^Merge.*"
+  disable: true
 release:
   github:
     owner: AlvaroEng98
     name: HarnessInit
+  header: |
+    {{ .Env.RELEASE_NOTES }}

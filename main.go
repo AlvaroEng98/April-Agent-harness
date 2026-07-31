@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -17,10 +16,18 @@ import (
 // harness vive en la raíz (feature_list.json, progress/, docs/) y NO se embebe:
 // así cada `harness init` genera un proyecto en limpio, no la bitácora del harness.
 //
-//go:embed .claude .opencode AGENT.md CLAUDE.md init.sh recap.sh session-handoff.md CHECKPOINTS.md .gitignore opencode.json templates
+// release-notes.sh y .goreleaser.yaml NO se embeben: son del pipeline de
+// release de este repo (Go + goreleaser), no del arnés que se scaffoldea.
+// CHANGELOG.md tampoco: el lienzo limpio vive en templates/CHANGELOG.md.
+//
+//go:embed .claude AGENT.md CLAUDE.md init.sh recap.sh sync-changelog.sh session-handoff.md CHECKPOINTS.md .gitignore templates
 var templateFS embed.FS
 
-
+const (
+	colorCyan  = "\033[1;36m"
+	colorDim   = "\033[2m"
+	colorReset = "\033[0m"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -51,20 +58,20 @@ Commands:
   help                Show this help`)
 }
 
+func printBanner() {
+	art := colorCyan +
+		"    _    ____  ____  ___ _     \n" +
+		"   / \\  |  _ \\|  _ \\|_ _| |   \n" +
+		"  / _ \\ | |_) | |_) || || |   \n" +
+		" / ___ \\|  __/|  _ < | || |___\n" +
+		"/_/   \\_\\_|   |_| \\_\\___|_____|\n" +
+		colorReset
+	fmt.Println(art)
+	fmt.Printf(colorDim+"  Project scaffolding for AI-assisted development  v%s"+colorReset+"\n\n", version)
+}
+
 func cmdInit() {
 	printBanner()
-
-	detected := DetectTools(defaultTools, exec.LookPath)
-	chosen := selectClient(detected)
-	if len(chosen) == 0 {
-		os.Exit(1)
-	}
-
-	// construir set de herramientas elegidas por directorio
-	want := map[string]bool{}
-	for _, t := range chosen {
-		want[t.Dir] = true
-	}
 
 	target := "."
 	args := os.Args[2:]
@@ -101,11 +108,9 @@ func cmdInit() {
 		}
 		if isExistingHarness {
 			fmt.Println("  Existing harness project detected, overwriting agent directories...")
-			for _, t := range chosen {
-				agentDir := filepath.Join(absTarget, t.Dir, "agents")
-				if err := os.RemoveAll(agentDir); err != nil {
-					fmt.Fprintf(os.Stderr, "  Warning: could not clean %s: %v\n", agentDir, err)
-				}
+			agentDir := filepath.Join(absTarget, ".claude", "agents")
+			if err := os.RemoveAll(agentDir); err != nil {
+				fmt.Fprintf(os.Stderr, "  Warning: could not clean %s: %v\n", agentDir, err)
 			}
 		}
 	}
@@ -129,37 +134,8 @@ func cmdInit() {
 			relPath = strings.TrimPrefix(path, "templates/")
 		}
 
-		// archivos de agentes — copiar a cada herramienta seleccionada
-		if strings.HasPrefix(path, ".claude/agents/") && !d.IsDir() {
-			data, err := templateFS.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			return copyAgentToTools(data, d.Name(), absTarget, want)
-		}
-
-		// opencode.json es config OpenCode-específica: solo se copia si esa
-		// herramienta fue seleccionada.
-		if path == "opencode.json" && !want[".opencode"] {
-			return nil
-		}
-
-		// gating genérico por herramienta: si un archivo/directorio pertenece
-		// al árbol de una herramienta no seleccionada, se omite (los dirs se
-		// saltan completos con fs.SkipDir para no recorrer su subárbol).
-		for _, toolDir := range []string{".claude", ".opencode"} {
-			if path == toolDir || strings.HasPrefix(path, toolDir+"/") {
-				if !want[toolDir] {
-					if d.IsDir() {
-						return fs.SkipDir
-					}
-					return nil
-				}
-				break
-			}
-		}
-
-		// resto de archivos y directorios
+		// todos los archivos y directorios (incluido el árbol .claude/) se
+		// copian tal cual, sin transformación
 		destPath := filepath.Join(absTarget, relPath)
 		if d.IsDir() {
 			return os.MkdirAll(destPath, 0755)
@@ -170,7 +146,7 @@ func cmdInit() {
 		}
 		mode := fs.FileMode(0644)
 		switch d.Name() {
-		case "init.sh", "recap.sh", "session_start_recap.sh":
+		case "init.sh", "recap.sh", "sync-changelog.sh", "session_start_recap.sh":
 			mode = 0755
 		}
 		if relPath == ".gitignore" {
@@ -214,30 +190,6 @@ func cmdInit() {
 	fmt.Println("  1. Edit feature_list.json with your project info")
 	fmt.Println("  2. Run ./init.sh to verify the environment")
 	fmt.Println("  3. Read AGENT.md to understand the workflow")
-}
-
-// copyAgentToTools copia un archivo de agente a todas las herramientas seleccionadas.
-func copyAgentToTools(data []byte, filename, absTarget string, want map[string]bool) error {
-	for toolDir := range want {
-		gen, ok := generators[toolDir]
-		if !ok {
-			continue
-		}
-
-		sub := gen.GetSubdir()
-		dir := filepath.Join(absTarget, toolDir, sub)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return err
-		}
-
-		transformed := gen.Transform(data)
-		dest := filepath.Join(dir, filename)
-		if err := os.WriteFile(dest, transformed, 0644); err != nil {
-			return err
-		}
-		fmt.Printf("  Created %s/%s/%s\n", toolDir, sub, filename)
-	}
-	return nil
 }
 
 // mergeGitignore agrega al archivo existente las entradas del template que falten.
