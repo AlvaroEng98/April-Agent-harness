@@ -10,5 +10,10 @@ este archivo, nunca `feature_list.json`.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-07-31
+Primera release publicada desde este repositorio. Continúa la numeración de
+la lineage anterior (`v0.2.10`), cuyo historial no está en este `main`.
+
 - Centralize Configuration (`centralize_config`)
 - Recap Automático al Iniciar Sesión (Claude + OpenCode) (`auto_recap_hook`)
