@@ -15,8 +15,9 @@ __pycache__/
 .venv/
 venv/
 
-# Go
+# Go build artifacts
 /harness
+/HarnessInit
 *.exe
 
 # Project
@@ -25,12 +26,15 @@ progress/*.md
 !progress/history.md
 harness-backend
 
-# Agent artifacts
+# Working notes / session artifacts (not product source)
+ANALISIS.md
+mejoras.md
+RECAP_*.md
+
+# Agent-generated docs at repo root (canonical copies live in docs/)
 architecture.md
 conventions.md
-.claude/agents/
 verification.md
-session-handoff.md
 
 # Opencode plugin dependencies
 .opencode/node_modules/
