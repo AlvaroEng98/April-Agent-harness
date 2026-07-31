@@ -44,8 +44,14 @@ def section(title):
 body = section(version) or section(bare) or section("Unreleased")
 
 if not body:
-    print(f"release-notes: no se encontró sección para {version} ni Unreleased",
-          file=sys.stderr)
+    # Cubre dos casos que conviene no confundir: sección ausente y sección
+    # presente pero sin cuerpo (lo normal al taggear sin correr sync-changelog).
+    print(
+        f"release-notes: sin notas para {version}. No hay sección '## [{bare}]' "
+        "y '## [Unreleased]' está ausente o vacía. Vuelca las features done con "
+        "./sync-changelog.sh antes de taggear.",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 print(body)

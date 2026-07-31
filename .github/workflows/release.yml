@@ -29,11 +29,17 @@ jobs:
       # Las notas salen de CHANGELOG.md (versionado), no de feature_list.json
       # (gitignoreado, ausente en el checkout). goreleaser las consume via
       # release.header -> {{ .Env.RELEASE_NOTES }}.
+      # Las notas se capturan en una variable ANTES de abrir el here-doc: si el
+      # script falla, set -e aborta sin haber escrito nada en $GITHUB_ENV. Si se
+      # invocara dentro del bloque, el delimitador de cierre no se escribiría y
+      # el error real quedaría tapado por "Matching delimiter not found".
+      # No se usa `|| true`: sin notas no se publica release.
       - name: Notas de release desde CHANGELOG.md
         run: |
+          NOTES="$(./release-notes.sh "${GITHUB_REF_NAME}")"
           {
             echo "RELEASE_NOTES<<GORELEASER_EOF"
-            ./release-notes.sh "${GITHUB_REF_NAME}"
+            printf '%s\n' "$NOTES"
             echo "GORELEASER_EOF"
           } >> "$GITHUB_ENV"
 
