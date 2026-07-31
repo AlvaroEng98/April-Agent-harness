@@ -26,9 +26,10 @@ checksum:
 # versionado (es estado de desarrollo) y el checkout de CI no lo tiene.
 changelog:
   disable: true
+# Sin bloque `github:` a propósito: goreleaser deduce owner/repo del entorno
+# (GITHUB_REPOSITORY en Actions, o el remote origin en local). Fijarlos a mano
+# rompe el release si el repo se renombra o se mueve, porque el GITHUB_TOKEN
+# que inyecta Actions solo tiene permiso sobre el repo donde corre el workflow.
 release:
-  github:
-    owner: AlvaroEng98
-    name: HarnessInit
   header: |
     {{ .Env.RELEASE_NOTES }}
