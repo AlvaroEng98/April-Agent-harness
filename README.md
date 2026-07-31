@@ -1,46 +1,205 @@
-# Project Name
+<p align="center">
+  <img src="assets/banner.webp" alt="April Harness — Plan. Build. Test. Repeat." width="100%">
+</p>
 
-> AI-assisted Spec-Driven Development scaffold.
+# April Agent Harness — `harness`
 
-This project uses **Spec-Driven Development (SDD)** with AI agents (Claude Code)
-to guide features from specification to implementation to review.
+> CLI que scaffoldea un repositorio listo para **Spec-Driven Development (SDD)**
+> asistido por agentes de IA (Claude Code).
 
-## Getting started
+`harness init` deja en tu proyecto el arnés completo: subagentes definidos
+(orquestador, planner, spec author, developer, reviewer), el manifiesto de
+features, los documentos de proceso y los scripts de verificación. A partir de
+ahí el flujo `pending → spec → aprobación humana → implementación → review → done`
+lo conduce el agente, no tú.
 
-1. Run `./init.sh` to verify the environment.
-2. Read `AGENT.md` to understand the project structure and workflow.
-3. Edit `feature_list.json` to define your project name and features.
-4. Start with the first `pending` feature — the AI agent workflow handles the rest.
+Este repositorio se **dogfoodea a sí mismo**: el arnés que instala es el mismo
+que usa para desarrollarse.
 
-## Prerequisites
+---
 
-- Python 3 (for `init.sh` validation)
-- Claude Code or compatible AI agent (`.claude/agents/` contains agent definitions)
+## Instalación
 
-## Project structure
+### Opción 1 — Binario de release (recomendado)
+
+Plataformas publicadas: `linux` y `darwin` (macOS), en `amd64` y `arm64`.
+
+```bash
+VERSION=0.3.0
+
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)  ARCH=amd64 ;;
+  aarch64) ARCH=arm64 ;;
+esac
+
+curl -sSL "https://github.com/AlvaroEng98/April-Agent-harness/releases/download/v${VERSION}/harness_${VERSION}_${OS}_${ARCH}.tar.gz" \
+  | tar -xz harness
+
+sudo install -m 755 harness /usr/local/bin/harness
+harness version
+```
+
+Sin `sudo`, instalando en el `$HOME` (asegúrate de que `~/.local/bin` esté en el `PATH`):
+
+```bash
+mkdir -p ~/.local/bin && install -m 755 harness ~/.local/bin/harness
+```
+
+Los checksums de cada release están en `checksums.txt` junto a los binarios.
+
+### Opción 2 — Compilar desde el código fuente
+
+Requiere Go 1.25 o superior.
+
+```bash
+git clone https://github.com/AlvaroEng98/April-Agent-harness.git
+cd April-Agent-harness
+go build -o harness .
+sudo install -m 755 harness /usr/local/bin/harness
+```
+
+El binario embebe todas las plantillas (`go:embed`), así que es autocontenido:
+puedes moverlo o borrar el clon después de compilar.
+
+### Requisitos del proyecto scaffoldeado
+
+El binario no tiene dependencias, pero el arnés que instala sí:
+
+| Requisito | Para qué |
+|-----------|----------|
+| `bash` | `init.sh`, `recap.sh`, `sync-changelog.sh` |
+| `python3` | validación de `feature_list.json` y specs en `init.sh` |
+| Claude Code (o agente compatible) | lee `.claude/agents/` y `AGENT.md` |
+
+---
+
+## Uso
+
+```bash
+harness init mi-proyecto   # scaffoldea en ./mi-proyecto (lo crea si no existe)
+harness init .             # scaffoldea en el directorio actual
+harness init               # equivalente a `harness init .`
+```
+
+| Comando | Qué hace |
+|---------|----------|
+| `harness init [dir]` | Genera la estructura del arnés en `dir` (por defecto `.`) |
+| `harness version` | Imprime la versión (`-v`, `--version`) |
+| `harness help` | Muestra la ayuda (`-h`, `--help`) |
+
+### Comportamiento sobre un directorio no vacío
+
+- Si detecta un arnés previo (`AGENT.md` o `feature_list.json` presentes),
+  **borra y regenera `.claude/agents/`** para que las definiciones de subagentes
+  queden actualizadas. Úsalo para actualizar el arnés de un proyecto existente.
+- `.gitignore` **se fusiona**: agrega las entradas del template que falten y
+  conserva las tuyas.
+- El resto de los archivos del template **se sobrescriben**. Si tienes trabajo
+  en `feature_list.json`, `progress/` o `docs/`, respáldalo antes.
+
+### Primeros pasos tras el `init`
+
+```bash
+cd mi-proyecto
+./init.sh          # verifica el entorno — debe salir todo [OK]
+```
+
+Después abre Claude Code en el directorio. La feature semilla
+`bootstrap_project` hace que el orquestador te entreviste (objetivo + tech
+stack), escriba `progress/project-definition.md` y lance `planner_agent` para
+poblar el backlog.
+
+---
+
+## Qué genera `harness init`
 
 ```
-├── .claude/agents/       AI agent definitions (orchestrator, developer, reviewer)
-├── docs/                 Project documentation and process guides
-├── specs/<feature>/      Per-feature specs (requirements, design, tasks)
-├── progress/             Session tracking (current + history)
-├── src/                  Application source code
-├── tests/                Automated tests
-├── AGENT.md              Navigation map for AI agents
-├── feature_list.json     Feature tracking manifest
-├── init.sh               Environment verification
-└── CHECKPOINTS.md        Quality criteria for feature completion
+├── .claude/
+│   ├── agents/            5 subagentes: orquestador, planner, spec author,
+│   │                      developer, reviewer
+│   ├── hooks/             SessionStart hook que inyecta el recap del proyecto
+│   └── settings.json      permisos + registro del hook
+├── docs/
+│   ├── architecture.md    qué significa "hacer un buen trabajo" aquí
+│   ├── conventions.md     estilo, nombres, estructura
+│   └── verification.md    cómo verificar el trabajo (incluye trazabilidad)
+├── progress/
+│   ├── current.md         estado de la sesión en curso
+│   └── history.md         bitácora append-only de sesiones cerradas
+├── specs/                 (vacío) specs por feature: requirements/design/tasks
+├── src/                   (vacío) código de la aplicación
+├── tests/                 (vacío) tests automáticos
+├── AGENT.md               mapa de navegación para el agente
+├── CLAUDE.md              rol obligatorio del hilo principal: orquestador
+├── CHECKPOINTS.md         criterios objetivos C1–C7 para cerrar una feature
+├── CHANGELOG.md           registro de lo entregado (versionado)
+├── README.md              README del proyecto, con el flujo y los comandos
+├── feature_list.json      manifiesto de features con estado
+├── session-handoff.md     plantilla de traspaso entre sesiones
+├── init.sh                verificación del entorno (ejecutable)
+├── recap.sh               recap de estado, fuente única de verdad
+├── sync-changelog.sh      vuelca las features `done` al CHANGELOG
+└── .gitignore
 ```
 
-## Workflow
+## El flujo
 
 ```
-pending → [spec author] → spec_ready → ⏸ human approval → in_progress → [developer → reviewer] → done
+[FASE Grill: el orquestador entrevista]  ← solo si bootstrap_project no está done
+       │
+       ▼  progress/project-definition.md
+[planner_agent]  ← descompone en features
+       │
+       ▼
+pending → [sdd_agent_author] → spec_ready → ⏸ APROBACIÓN HUMANA
+       → in_progress → [agent_developer → reviewer_agent] → done
 ```
 
-Each feature flows through the SDD pipeline. Features with `"sdd": true` require
-a full spec (requirements, design, tasks) before any code is written.
+Dos puertas que el agente no puede saltar: la **aprobación humana del spec**
+antes de escribir código, y la **aprobación humana del review** antes de marcar
+`done`. Las features con `"sdd": true` requieren los tres documentos
+(`requirements.md`, `design.md`, `tasks.md`) antes de que exista una línea de
+código.
 
-## Commands
+Detalle completo en el `AGENT.md` del proyecto generado (§4) y en
+`docs/specs.md` de este repositorio.
 
-- `./init.sh` — Verify environment and validate state
+---
+
+## Desarrollo de este repositorio
+
+```bash
+./init.sh        # verifica el arnés + compila + corre el recap
+go test ./...    # tests
+go build -o harness . && ./harness init /tmp/prueba-harness   # smoke test
+```
+
+### Dónde vive qué
+
+- **Raíz** (`feature_list.json`, `progress/`, `docs/`): estado de trabajo *de
+  este repo*. `feature_list.json` y `progress/*.md` están gitignoreados a
+  propósito — son estado de desarrollo, no producto.
+- **`templates/`**: el **lienzo limpio** de esos mismos archivos, lo que se
+  embebe y se copia al proyecto destino. Si quieres cambiar lo que reciben los
+  usuarios, edita aquí.
+- El resto de los archivos embebidos (`.claude/`, `AGENT.md`, `CLAUDE.md`,
+  `init.sh`, `recap.sh`, …) se toman de la raíz tal cual: son idénticos en este
+  repo y en el proyecto generado.
+
+La lista exacta de lo que se embebe está en la directiva `go:embed` de
+`main.go`. `templates/` se embebe entero, así que un archivo nuevo ahí entra
+automáticamente al scaffold.
+
+### Release
+
+1. Feature aprobada como `done` → `./sync-changelog.sh` la vuelca a la sección
+   `## [Unreleased]` de `CHANGELOG.md`.
+2. Renombra `## [Unreleased]` a `## [X.Y.Z] - dd/mm/aaaa` y commitea.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+El workflow `.github/workflows/release.yml` corre los tests (si fallan, no hay
+release), extrae las notas de la versión con `./release-notes.sh` y lanza
+goreleaser. Las notas salen **siempre** de `CHANGELOG.md`, nunca de
+`feature_list.json` (que no está en el checkout de CI).
