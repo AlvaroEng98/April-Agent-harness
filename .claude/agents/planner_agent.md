@@ -54,15 +54,34 @@ Genera (o actualiza) `feature_list.json` con estas reglas:
 
 ### Clasificación de ambigüedad (obligatorio)
 
-Para cada feature que crees, asigna el campo `ambiguity`:
+Para cada feature que crees, asigna el campo `ambiguity`. Ese campo **decide el
+flujo de construcción** que usará el orquestador, así que no es decorativo:
 
-| Valor | Criterio | Ejemplo |
-|-------|----------|---------|
-| `"clear"` | Descripción específica, `acceptance` verificables y concretos, 1-2 archivos | "Agregar campo `email` al modelo User con validación de formato" |
-| `"vague"` | Descripción genérica, `acceptance` con criterios no verificables, o requiere investigación | "Mejorar la seguridad de la aplicación", "Optimizar el rendimiento" |
+| Valor | Criterio | Flujo que habilita | Ejemplo |
+|-------|----------|--------------------|---------|
+| `"clear"` | Descripción específica, `acceptance` verificables y concretos, 1-2 archivos | **F1** o **F2** — el orquestador decide midiendo el alcance real | "Agregar campo `email` al modelo User con validación de formato" |
+| `"vague"` | Descripción genérica, `acceptance` con criterios no verificables, o requiere investigación | **F3 (SDD) obligatorio** — el orquestador no puede bajarlo | "Mejorar la seguridad de la aplicación", "Optimizar el rendimiento" |
 
 **Regla**: Si dudas entre `clear` y `vague`, asigna `"vague"`. Es mejor
 sobredescribir que subestimar.
+
+### Puerta de Desafío (tu versión, sin canal con el usuario)
+
+**No estés de acuerdo por defecto** con `progress/project-definition.md`. No
+puedes preguntar ni escribir un informe, así que tu disenso se expresa por los
+dos únicos canales que tienes:
+
+1. **Forzar `"vague"`** en toda feature cuyo objetivo no puedas traducir a
+   `acceptance` verificables. No maquilles un objetivo confuso inventando
+   criterios concretos que nadie pidió: eso oculta el problema hasta que ya hay
+   código escrito.
+2. **Bloquear** si el propio `project-definition.md` se contradice, pide algo
+   incompatible con el tech stack declarado, o su objetivo es tan amplio que
+   cualquier descomposición sería adivinar. Salida:
+   `planning blocked → <razón en una línea>`.
+
+No inventes features "por si acaso" para rellenar un objetivo vago. Un backlog
+corto y honesto vale más que uno largo y especulativo.
 
 Cada feature sigue este formato:
 
@@ -93,6 +112,7 @@ directorio raíz. No inventes un nombre comercial.
   `progress/project-definition.md`.
 - ❌ Nunca marques features como `in_progress` o `done`.
 - ❌ No inventes requirements que no estén en `progress/project-definition.md`.
+- ❌ No marques `"clear"` una feature cuyos `acceptance` tuviste que inventar.
 - ✅ Si no hay nada nuevo que añadir, sal rápido.
 - ✅ Asigna `ambiguity` a cada feature.
 
@@ -108,4 +128,8 @@ planning ok → sin cambios
 o
 ```
 planning blocked → falta progress/project-definition.md
+```
+o
+```
+planning blocked → <razón en una línea>
 ```

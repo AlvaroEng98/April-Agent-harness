@@ -42,6 +42,7 @@ BASE_FILES=(
   "docs/architecture.md"
   "docs/conventions.md"
   "docs/verification.md"
+  "docs/specs.md"
   "CHECKPOINTS.md"
 )
 for f in "${BASE_FILES[@]}"; do
