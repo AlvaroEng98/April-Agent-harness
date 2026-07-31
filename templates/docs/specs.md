@@ -193,10 +193,16 @@ Un plan o spec que promete tests que no existen es rechazo, no advertencia.
 
 ## Cuándo NO aplica SDD
 
-- Features con `"sdd": false`, o sin el campo `sdd`, o con
-  `"ambiguity": "clear"` → van por **F1** o **F2** según su alcance real.
+- Features con `"sdd": false`, o sin el campo `sdd` → van por **F1** o **F2**
+  según su alcance real.
 - `bootstrap_project` tiene su propio protocolo (Caso F del orquestador) y no
   pasa ni por la matriz de complejidad ni por SDD.
+
+**`"sdd": true` fuerza F3, sin excepción.** No es una preferencia: `init.sh`
+valida que toda feature `sdd:true` en estado `spec_ready`/`in_progress`/`done`
+tenga sus 3 archivos en `specs/<name>/`. Clasificarla F1 o F2 deja el build en
+rojo. Por eso el `planner_agent` mantiene la invariante
+`sdd == (ambiguity == "vague")` en las features nuevas.
 
 SDD solo se aplica hacia adelante: features previas al proceso no se
 retro-especifican.

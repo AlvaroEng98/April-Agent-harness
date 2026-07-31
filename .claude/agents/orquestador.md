@@ -229,9 +229,13 @@ Antes de cualquier acción, clasifica la feature según esta matriz:
 ### Cómo clasificar
 
 1. **Lee la descripción** de la feature en `feature_list.json`.
-2. **Mira el campo `ambiguity`** que dejó el `planner_agent`. Es una pista, no
-   el veredicto: `"vague"` → **fuerza F3**, no puedes bajarlo. `"clear"` → sigue
-   evaluando, decide tú entre F1 y F2 según el alcance real que midas.
+2. **Mira los campos `sdd` y `ambiguity`**. No son pistas, son restricciones:
+   - `"sdd": true` → **F3 obligatorio**, sin excepción. `init.sh` exige los 3
+     archivos de `specs/<name>/` para cualquier feature `sdd:true` en estado
+     no-`pending`: clasificarla F1 o F2 deja el build en rojo.
+   - `"ambiguity": "vague"` → **F3 obligatorio**, no puedes bajarlo.
+   - `"sdd": false` + `"ambiguity": "clear"` → sigue evaluando, decides tú entre
+     F1 y F2 según el alcance real que midas.
 3. **Evalúa los `acceptance`**: ¿son verificables y concretos? Si son vagos → F3.
 4. **Explora el código** (grep de dependencias, `ls` de archivos relacionados):
    - ¿Toca 1-2 archivos? → candidato a F1.

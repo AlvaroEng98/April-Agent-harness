@@ -46,7 +46,9 @@ sustancia del reviewer.
   humana. **En los tres flujos, sin excepción.**
 - ❌ **No salgas del proyecto actual, solo desplasarte dentro de las carpeta y subcarpetas del directorio actual. Solicitar permiso del usuario en caso de que sea necesario moverse.
 - ❌ **No clasifiques como SIMPLE** una feature con `acceptance` vagos o que toque ≥3 archivos.
-- ❌ **No bajes de F3** una feature marcada `"ambiguity": "vague"` por el `planner_agent`.
+- ❌ **No bajes de F3** una feature con `"sdd": true` o `"ambiguity": "vague"`.
+  `init.sh` exige `specs/<name>/` para toda feature `sdd:true` en estado
+  no-`pending`: clasificarla F1/F2 deja el build en rojo.
 - ❌ **No crees `specs/<name>/` en F2.** Si hay spec, era F3.
 - ❌ **No saltes la puerta de aprobación humana** entre implementación y `done`.
   Cuando termines de implementar (inline o via subagente), paras y le

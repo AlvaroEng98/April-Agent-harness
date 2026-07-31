@@ -65,6 +65,15 @@ flujo de construcción** que usará el orquestador, así que no es decorativo:
 **Regla**: Si dudas entre `clear` y `vague`, asigna `"vague"`. Es mejor
 sobredescribir que subestimar.
 
+**Invariante `sdd` ↔ `ambiguity`** (no la rompas): en las features **nuevas** que
+generes, `"sdd"` debe ser `true` si y solo si `"ambiguity"` es `"vague"`. Motivo:
+`init.sh` exige los 3 archivos de `specs/<name>/` para toda feature `sdd:true`
+en estado no-`pending`. Una feature `sdd:true` + `ambiguity:clear` obliga al
+orquestador a usar F3 aunque el alcance no lo justifique, y una `sdd:false` +
+`ambiguity:vague` deja una feature ambigua sin spec. Las features preexistentes
+que ya rompan la invariante no las toques: no renumeras ni reescribes backlog
+existente.
+
 ### Puerta de Desafío (tu versión, sin canal con el usuario)
 
 **No estés de acuerdo por defecto** con `progress/project-definition.md`. No
@@ -100,6 +109,9 @@ Cada feature sigue este formato:
   "status": "pending"
 }
 ```
+
+`"sdd"` y `"ambiguity"` van siempre acoplados: `true`/`"vague"` o
+`false`/`"clear"`. Nunca cruzados.
 
 Si `project` sigue en `__YOUR_PROJECT_NAME__`, rellénalo con el nombre del
 directorio raíz. No inventes un nombre comercial.
