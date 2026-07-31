@@ -1,4 +1,4 @@
-module gitlab.com/alvaro.eng.98/harness-backend
+module github.com/AlvaroEng98/HarnessInit
 
 go 1.25.0
 

@@ -1,3 +1,4 @@
+version: 2
 project_name: harness
 before:
   hooks:
@@ -14,7 +15,7 @@ builds:
       - amd64
       - arm64
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: "checksums.txt"
@@ -27,6 +28,6 @@ changelog:
       - "^chore:"
       - "^Merge.*"
 release:
-  gitlab:
-    owner: alvaro.eng.98
-    name: harness-backend
+  github:
+    owner: AlvaroEng98
+    name: HarnessInit

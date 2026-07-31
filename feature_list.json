@@ -1,6 +1,6 @@
 {
-  "project": "__YOUR_PROJECT_NAME__",
-  "description": "__ONE_LINE_DESCRIPTION_OF_YOUR_PROJECT__",
+  "project": "april-harness",
+  "description": "CLI en Go que scaffoldea un harness de desarrollo dirigido por specs (SDD) con agentes orquestador/planner/developer/reviewer para Claude Code y OpenCode",
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
@@ -12,20 +12,46 @@
       "done",
       "blocked"
     ],
-    "sdd_required_when": "feature has \"sdd\": true"
+    "sdd_required_when": "feature has \"sdd\": true AND ambiguity is \"vague\"",
+    "complexity_levels": {
+      "simple": "1-2 files, <100 lines, clear acceptance → orchestrator implements inline",
+      "medium": "2-3 files, shared types, clear description → delegate implementer + reviewer",
+      "ambiguous": "vague/incomplete description → SDD: spec_author → approval → implementer → reviewer"
+    }
   },
   "features": [
     {
       "id": 1,
-      "name": "my_first_feature",
-      "title": "My First Feature",
-      "description": "Description of what this feature does",
+      "name": "centralize_config",
+      "title": "Centralize Configuration",
+      "description": "Crear config.go como fuente única de verdad para versión y archivos requeridos, eliminando la dispersión entre main.go e init.sh",
       "sdd": true,
+      "ambiguity": "clear",
       "acceptance": [
-        "Acceptance criterion 1",
-        "Acceptance criterion 2"
+        "La versión se define únicamente en config.go y se usa en main.go",
+        "La lista de archivos requeridos se define únicamente en config.go",
+        "init.sh consume la lista de archivos desde config.go (vía go generate o embed)",
+        "No hay valores hardcodeados duplicados entre main.go e init.sh"
       ],
-      "status": "pending"
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "auto_recap_hook",
+      "title": "Recap Automático al Iniciar Sesión (Claude + OpenCode)",
+      "description": "Agregar al template de scaffolding un mecanismo automático que, al iniciar sesión el agente (Claude Code u OpenCode), ejecute primero un recap del estado del proyecto (última entrada de progress/history.md, feature actual en feature_list.json, sesión activa en progress/current.md) e inyecte ese resultado como contexto, sin depender de que el agente siga una instrucción manual. Para Claude Code vía SessionStart hook nativo en .claude/settings.json. Para OpenCode vía plugin nativo equivalente. La lógica de recap debe compartirse entre ambos mecanismos (no duplicar bash/lógica). Se agrega al generador (main.go/embed) para que se propague a todo proyecto scaffoldeado por el CLI, incluyendo este propio repo.",
+      "sdd": true,
+      "ambiguity": "clear",
+      "acceptance": [
+        "Existe un script/función de recap reutilizable (no duplicada) que ambos mecanismos (Claude hook, OpenCode plugin) invocan",
+        "Template incluye .claude/settings.json con hook SessionStart que corre el recap y lo inyecta como contexto adicional al iniciar sesión Claude Code",
+        "Template incluye plugin OpenCode que corre el recap y lo inyecta como contexto al iniciar sesión, usando el mecanismo nativo de plugins de OpenCode",
+        "main.go embebe y copia los nuevos archivos de template, respetando la selección de herramientas existente (solo copia settings.json si Claude fue elegido, solo copia plugin si OpenCode fue elegido)",
+        "El recap muestra: última entrada de progress/history.md, feature no-done actual en feature_list.json, sesión activa (o su ausencia) en progress/current.md",
+        "./init.sh sigue funcionando igual (no se elimina ni duplica la sección 5 existente)",
+        "Tests cubren la lógica de recap compartida"
+      ],
+      "status": "done"
     }
   ]
 }

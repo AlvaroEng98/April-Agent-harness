@@ -49,19 +49,30 @@
 ## 4. Flujo de trabajo (SDD)
 
 ```
-[planner_agent] ← siempre al inicio de cada sesión
+[FASE Grill: el orquestador pregunta] ← solo si bootstrap_project no está done
        │
-       ▼ (guía + descompone en features)
+       ▼ progress/project-definition.md
+[planner_agent] ← descompone
+       │
+       ▼
 feature_list.json poblado
        │
        ▼
 pending → [sdd_agent_author] → spec_ready → ⏸ HUMANO → in_progress → [agent_developer → reviewer_agent] → done
 ```
 
-0. **`planner_agent`** se lanza siempre al inicio de cada sesión. Si el
-   projecto está templateado, guía al usuario con preguntas y descompone
-   la respuesta en features en `feature_list.json`. Si ya hay features,
-   pregunta si quiere añadir o repriorizar.
+0. **Planificación — condicional, no en cada sesión.** Se dispara por **estado
+   explícito del backlog**, no por heurística: el template embarca una feature
+   semilla `bootstrap_project` (`id 1`, `pending`) y el orquestador solo corre
+   la planificación si esa feature no está `done`, o si el usuario la pide. En
+   cualquier otro caso salta directo al paso 1. Un backlog agotado **no**
+   dispara planificación: el orquestador reporta "backlog vacío" y para.
+
+   Cuando toca: el **orquestador** conduce la FASE Grill en el hilo principal
+   (2 preguntas: objetivo y tech stack) y escribe
+   `progress/project-definition.md`; después lanza **`planner_agent`**, que lee
+   ese archivo y descompone en features. El `planner_agent` no habla con el
+   usuario — es un subagente y no tiene canal con él.
 1. El orquestador detecta la primera feature `pending` con `"sdd": true`.
 2. El orquestador lanza `sdd_agent_author`, que crea
    `specs/<name>/{requirements,design,tasks}.md` y marca el status como

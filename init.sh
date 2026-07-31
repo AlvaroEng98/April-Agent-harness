@@ -20,7 +20,16 @@ EXIT_CODE=0
 
 echo "── 1. Verificando archivos base del arnés ──────────────"
 
-for f in AGENT.md feature_list.json progress/current.md docs/architecture.md docs/conventions.md docs/verification.md CHECKPOINTS.md; do
+BASE_FILES=(
+  "AGENT.md"
+  "feature_list.json"
+  "progress/current.md"
+  "docs/architecture.md"
+  "docs/conventions.md"
+  "docs/verification.md"
+  "CHECKPOINTS.md"
+)
+for f in "${BASE_FILES[@]}"; do
   if [ ! -f "$f" ]; then
     fail "Falta archivo base: $f"
     EXIT_CODE=1
@@ -71,7 +80,65 @@ PY
 if [ $? -ne 0 ]; then EXIT_CODE=1; fi
 
 echo ""
-echo "── 5. Resumen ──────────────────────────────────────────"
+echo "── 3. Verificando agentes ─────────────────────────────"
+
+if [ -d ".claude/agents" ]; then
+  agent_count=0
+  for agent_file in .claude/agents/*.md; do
+    if [ -f "$agent_file" ]; then
+      agent_name=$(basename "$agent_file")
+      if grep -q "^#" "$agent_file" 2>/dev/null; then
+        ok "Agente válido: $agent_name"
+        agent_count=$((agent_count + 1))
+      else
+        fail "Agente sin cabeceras válidas: $agent_name"
+        EXIT_CODE=1
+      fi
+    fi
+  done
+  if [ $agent_count -eq 0 ]; then
+    warn "No se encontraron agentes en .claude/agents/"
+  else
+    ok "$agent_count agente(s) encontrado(s)"
+  fi
+else
+  warn "Directorio .claude/agents/ no existe (¿proyecto sin harness?)"
+fi
+
+echo ""
+echo "── 4. Verificando compilación Go ───────────────────────"
+
+if [ -f "go.mod" ]; then
+  if command -v go &>/dev/null; then
+    if go build -o /dev/null . 2>/dev/null; then
+      ok "Código Go compila correctamente"
+    else
+      fail "Error al compilar código Go"
+      EXIT_CODE=1
+    fi
+  else
+    warn "Go no está instalado — saltando verificación de compilación"
+  fi
+else
+  warn "No se encontró go.mod — proyecto no es Go"
+fi
+
+echo ""
+echo "── 5. Recap — estado del proyecto ──────────────────────"
+
+# Delega en recap.sh (fuente única de verdad). Cada línea no vacía de su
+# salida se muestra con ok(). El recap es informativo: si falta o no es
+# ejecutable, se advierte pero no se aborta la sección (no es bloqueante).
+if [ -x "./recap.sh" ]; then
+  while IFS= read -r line; do
+    [ -n "$line" ] && ok "$line"
+  done <<< "$(./recap.sh 2>/dev/null)"
+else
+  warn "recap.sh no encontrado o sin permisos de ejecución"
+fi
+
+echo ""
+echo "── 6. Resumen ──────────────────────────────────────────"
 
 if [ $EXIT_CODE -eq 0 ]; then
   ok "Entorno listo. Puedes empezar a trabajar."

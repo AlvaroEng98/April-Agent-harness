@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -16,22 +15,6 @@ const (
 	colorDim   = "\033[2m"
 	colorReset = "\033[0m"
 )
-
-var knownTools = []struct {
-	name   string
-	binary string
-	dir    string // carpeta a crear en el proyecto
-}{
-	{"Claude Code", "claude", ".claude"},
-	{"OpenCode", "opencode", ".opencode"},
-}
-
-type detectedTool struct {
-	name   string
-	binary string
-	dir    string
-	found  bool
-}
 
 func printBanner() {
 	art := colorCyan +
@@ -45,34 +28,20 @@ func printBanner() {
 	fmt.Printf(colorDim+"  Project scaffolding for AI-assisted development  v%s"+colorReset+"\n\n", version)
 }
 
-func detectTools() []detectedTool {
-	result := make([]detectedTool, len(knownTools))
-	for i, t := range knownTools {
-		_, err := exec.LookPath(t.binary)
-		result[i] = detectedTool{t.name, t.binary, t.dir, err == nil}
-	}
-	return result
-}
-
 // selectClient muestra las herramientas detectadas y retorna los dirs elegidos.
 // Retorna nil si el usuario cancela o no hay herramientas disponibles.
-func selectClient(detected []detectedTool) []detectedTool {
-	fmt.Println("  Herramientas AI detectadas:\n")
+func selectClient(detected []DetectedTool) []DetectedTool {
+	fmt.Println("  Herramientas AI detectadas:")
 	for _, d := range detected {
-		if d.found {
-			fmt.Printf("    \033[32m✓\033[0m  %s\n", d.name)
+		if d.Found {
+			fmt.Printf("    \033[32m✓\033[0m  %s\n", d.Name)
 		} else {
-			fmt.Printf("    \033[90m✗  %s\033[0m\n", d.name)
+			fmt.Printf("    \033[90m✗  %s\033[0m\n", d.Name)
 		}
 	}
 	fmt.Println()
 
-	var available []detectedTool
-	for _, d := range detected {
-		if d.found {
-			available = append(available, d)
-		}
-	}
+	available := availableTools(detected)
 
 	if len(available) == 0 {
 		fmt.Fprintln(os.Stderr, "  \033[31mNo se detectó ninguna herramienta compatible.\033[0m")
@@ -81,20 +50,20 @@ func selectClient(detected []detectedTool) []detectedTool {
 	}
 
 	if len(available) == 1 {
-		fmt.Printf("  \033[1;36m→ Estructura para: %s (auto-detectado)\033[0m\n\n", available[0].name)
+		fmt.Printf("  \033[1;36m→ Estructura para: %s (auto-detectado)\033[0m\n\n", available[0].Name)
 		return available
 	}
 
-	fmt.Println("  ¿Para qué herramientas crear la estructura de carpetas?\n")
+	fmt.Println("  ¿Para qué herramientas crear la estructura de carpetas?")
 	return selectInteractive(available)
 }
 
 type selectionState struct {
-	tool     detectedTool
+	tool     DetectedTool
 	selected bool
 }
 
-func selectInteractive(available []detectedTool) []detectedTool {
+func selectInteractive(available []DetectedTool) []DetectedTool {
 	states := make([]selectionState, len(available))
 	for i, t := range available {
 		states[i] = selectionState{tool: t}
@@ -114,9 +83,9 @@ func selectInteractive(available []detectedTool) []detectedTool {
 				checkbox = "[x]"
 			}
 			if i == cursor {
-				fmt.Printf("  \033[1;36m> %s %s\033[0m\r\n", checkbox, s.tool.name)
+				fmt.Printf("  \033[1;36m> %s %s\033[0m\r\n", checkbox, s.tool.Name)
 			} else {
-				fmt.Printf("    %s %s\r\n", checkbox, s.tool.name)
+				fmt.Printf("    %s %s\r\n", checkbox, s.tool.Name)
 			}
 		}
 		fmt.Print("\r\n")
@@ -142,7 +111,7 @@ func selectInteractive(available []detectedTool) []detectedTool {
 		switch {
 		case buf[0] == 13: // Enter — confirmar
 			term.Restore(int(os.Stdin.Fd()), oldState)
-			var result []detectedTool
+			var result []DetectedTool
 			for _, s := range states {
 				if s.selected {
 					result = append(result, s.tool)
@@ -190,9 +159,9 @@ func selectInteractive(available []detectedTool) []detectedTool {
 }
 
 // selectNumbered es el fallback si el terminal no soporta raw mode.
-func selectNumbered(available []detectedTool) []detectedTool {
+func selectNumbered(available []DetectedTool) []DetectedTool {
 	for i, d := range available {
-		fmt.Printf("  [%d] %s\n", i+1, d.name)
+		fmt.Printf("  [%d] %s\n", i+1, d.Name)
 	}
 	fmt.Printf("\n  Selecciona (ej: 1,3) (Enter para cancelar): ")
 
@@ -205,7 +174,7 @@ func selectNumbered(available []detectedTool) []detectedTool {
 		return nil
 	}
 
-	var result []detectedTool
+	var result []DetectedTool
 	seen := map[int]bool{}
 	for _, part := range strings.Split(input, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(part))

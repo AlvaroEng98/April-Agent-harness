@@ -24,3 +24,13 @@ progress/*.md
 !progress/current.md
 !progress/history.md
 harness-backend
+
+# Agent artifacts
+architecture.md
+conventions.md
+.claude/agents/
+verification.md
+session-handoff.md
+
+# Opencode plugin dependencies
+.opencode/node_modules/
