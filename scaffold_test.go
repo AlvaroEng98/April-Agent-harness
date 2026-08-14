@@ -134,8 +134,6 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 	}
 
 	wantDirs := []string{
-		filepath.Join(dest, "src"),
-		filepath.Join(dest, "tests"),
 		filepath.Join(dest, "specs"),
 	}
 	for i, want := range wantDirs {

@@ -24,6 +24,23 @@ import (
 //go:embed .claude AGENT.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md .gitignore templates
 var templateFS embed.FS
 
+// scaffoldGitignoreExtra son reglas que aplican SOLO al proyecto scaffoldeado,
+// no al propio harness (que sí versiona su specs/ y su session-handoff.md).
+// Van en código y no en el .gitignore de la raíz para no mezclar el ignore
+// del harness con el del proyecto que genera: el árbol de trabajo de este
+// repo y el del destino tienen reglas distintas aunque compartan archivo base.
+const scaffoldGitignoreExtra = `
+# Proyecto scaffoldeado (target de ` + "`april init`" + `): specs/ (specs SDD) y
+# tests/ (suite de test) son estado de trabajo, no se versionan de momento.
+# src/ SI se versiona — es el código de la aplicación objetivo, el
+# entregable real del proyecto scaffoldeado; por eso no aparece aquí.
+specs/
+tests/
+
+# Estado de sesión del proyecto scaffoldeado — no versionar.
+/session-handoff.md
+`
+
 // scaffoldFileWrite describe un único archivo a escribir en el destino: su
 // ruta relativa (para el mensaje de progreso), su ruta absoluta de destino,
 // el contenido ya resuelto (incluido el merge de .gitignore si aplica), el
@@ -119,6 +136,7 @@ func planScaffold(absTarget string) (scaffoldPlan, error) {
 			mode:     mode,
 		}
 		if relPath == ".gitignore" {
+			data = append(data, []byte(scaffoldGitignoreExtra)...)
 			if _, err := os.Stat(destPath); err == nil {
 				merged, err := mergeGitignore(destPath, data)
 				if err != nil {
@@ -139,8 +157,6 @@ func planScaffold(absTarget string) (scaffoldPlan, error) {
 	}
 
 	plan.emptyDirs = []string{
-		filepath.Join(absTarget, "src"),
-		filepath.Join(absTarget, "tests"),
 		filepath.Join(absTarget, "specs"),
 	}
 
