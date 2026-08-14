@@ -8,11 +8,11 @@
 
 ## 1. Antes de empezar (obligatorio)
 
-1. Ejecuta `./init.sh` y verifica que termina sin errores. Si falla, **para**
-   y resuelve el entorno antes de tocar código.
-2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
-3. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
+1. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
+2. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
    **Spec Driven Development** — ver `docs/specs.md` y §4 de este archivo.
+3. Ejecuta `./init.sh` y verifica que termina sin errores. Si falla, **para**
+   y resuelve el entorno antes de tocar código.
 4. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
 
 ## 2. Mapa del repositorio
@@ -36,7 +36,8 @@
 ## 3. Reglas duras (no negociables)
 
 - **Una sola feature a la vez.** No mezcles cambios de varias tareas en la misma sesión.
-- **No salgas del proyecto actual, solo desplasarte dentro de las carpeta y subcarpetas del directorio actual. Solicitar permiso del usuario en caso de que sea necesario moverse.
+- **No salgas del proyecto actual.** Solo te mueves dentro de sus carpetas y
+  subcarpetas. Si necesitas salir, pide permiso al usuario primero.
 - **No declares una tarea `done` sin pruebas verdes.** Ejecuta `./init.sh` y
   asegúrate de que el bloque de tests pasa al 100%.
 - **No saltes la fase de spec en F3.** Toda feature con `"sdd": true` y
@@ -55,101 +56,22 @@
 ## 4. Flujos de trabajo
 
 Hay **tres** flujos de construcción. El orquestador clasifica la feature y elige
-uno; una vez elegido no se mezcla con otro. Matriz completa en
-`.claude/agents/orquestador.md`.
+uno; una vez elegido no se mezcla con otro.
 
-```
-[FASE Grill: el orquestador pregunta] ← solo si bootstrap_project no está done
-       │
-       ▼ progress/project-definition.md
-[planner_agent] ← descompone y asigna "ambiguity"
-       │
-       ▼
-feature_list.json poblado
-       │
-       ▼ el orquestador clasifica → elige flujo
-       │
-  ┌────┴──────────────────────────────────────────────────────────────┐
-  │                                                                   │
-F1 Directo   (SIMPLE: 1-2 archivos, acceptance claro)
-  pending → in_progress → [orquestador inline] → ⏸ HUMANO → done
-
-F2 Delegado  (MEDIO: 2-3 archivos, claro, SIN SDD)
-  pending → in_progress → [agent_developer → reviewer_agent] → ⏸ HUMANO → done
-                           └─ escribe progress/plan_<name>.md antes de codear
-
-F3 SDD       (AMBIGUO: vago o no verificable)
-  pending → [sdd_agent_author] → spec_ready → ⏸ HUMANO → in_progress
-          → [agent_developer → reviewer_agent] → ⏸ HUMANO → done
-```
-
-Diferencias que importan:
-
-| | F1 | F2 | F3 |
+| | F1 Directo | F2 Delegado | F3 SDD |
 |---|---|---|---|
+| Cuándo | SIMPLE: 1-2 archivos, <100 líneas, `acceptance` claro | MEDIO: 2-3 archivos, claro, sin SDD | AMBIGUO: vago o `acceptance` no verificable |
+| Ruta | `pending → in_progress → [inline] → ⏸ HUMANO → done` | `pending → in_progress → [agent_developer → reviewer_agent] → ⏸ HUMANO → done` | `pending → [sdd_agent_author] → spec_ready → ⏸ HUMANO → in_progress → [agent_developer → reviewer_agent] → ⏸ HUMANO → done` |
 | Contrato | el `acceptance` | `progress/plan_<name>.md` | `specs/<name>/` (EARS) |
 | Subagentes | ninguno | 2 | 3 |
 | Puertas humanas | 1 (cierre) | 1 (cierre) | 2 (spec + cierre) |
-| Checkpoints | C1-C3, C6, C7 | + C8, sin C4/C5 | todos C1-C8 |
+| Checkpoints | C1-C3, C6, C7, C9 | + C8, sin C4/C5 | todos C1-C9 |
 
-### 4.1 Puerta de Desafío (atraviesa los tres flujos)
-
-Ningún agente de este repo está de acuerdo por defecto. Antes de ejecutar se
-revisan cuatro gatillos:
-
-- **G1 Contradicción** — choca con `docs/`, `progress/project-definition.md`, un
-  spec aprobado o una decisión previa.
-- **G2 Camino más simple** — existe una solución con menos archivos o piezas que
-  cumple el mismo `acceptance`.
-- **G3 No verificable** — un criterio de `acceptance` no se puede convertir en
-  test concreto.
-- **G4 Coste >> valor** — el alcance real es mucho mayor que el enunciado.
-
-Con gatillo se emite una objeción (`⚠️ OBJECIÓN [G<n>]` + `Evidencia:` +
-`Alternativa:`). Sin gatillo, silencio: objetar sin motivo es peor que no objetar
-porque entrena al usuario a ignorar las objeciones que sí importan. Una objeción
-rechazada por el humano se ejecuta igual y queda anotada como **riesgo asumido**,
-nunca borrada.
-
-### 4.2 Secuencia detallada
-
-0. **Planificación — condicional, no en cada sesión.** Se dispara por **estado
-   explícito del backlog**, no por heurística: el template embarca una feature
-   semilla `bootstrap_project` (`id 1`, `pending`) y el orquestador solo corre
-   la planificación si esa feature no está `done`, o si el usuario la pide. En
-   cualquier otro caso salta directo al paso 1. Un backlog agotado **no**
-   dispara planificación: el orquestador reporta "backlog vacío" y para.
-
-   Cuando toca: el **orquestador** conduce la FASE Grill en el hilo principal
-   (2 preguntas: objetivo y tech stack) y escribe
-   `progress/project-definition.md`; después lanza **`planner_agent`**, que lee
-   ese archivo y descompone en features. El `planner_agent` no habla con el
-   usuario — es un subagente y no tiene canal con él.
-1. El orquestador detecta la primera feature no-`done`, la **clasifica** y
-   **anuncia el flujo** (F1 / F2 / F3) en una línea. Pasa la Puerta de Desafío
-   (§4.1) antes de actuar.
-2. **F1** — el orquestador implementa inline (código + test), corre `./init.sh`
-   y salta al paso 7.
-3. **F2** — el orquestador pone `in_progress` y lanza `agent_developer` **en modo
-   F2** (el prompt debe decirlo). Ese agente escribe primero
-   `progress/plan_<name>.md`, luego implementa contra el `acceptance`. Sigue en
-   el paso 6.
-4. **F3** — el orquestador lanza `sdd_agent_author`, que crea
-   `specs/<name>/{requirements,design,tasks}.md` —incluida la sección
-   `## Desafío` de `design.md`— y marca el status como `spec_ready`.
-   **Pausa (puerta 1 de 2).** El humano lee el spec y aprueba o pide cambios.
-5. **F3, tras aprobación** — el orquestador pone `in_progress` y lanza
-   `agent_developer` **en modo F3**, que ejecuta `tasks.md` una a una
-   marcándolas `[x]`.
-6. El `reviewer_agent` (con el modo F2/F3 indicado en su prompt) verifica
-   trazabilidad, completitud y **sustancia**; devuelve `APPROVED`,
-   `APPROVED_WITH_OBJECTION` o `CHANGES_REQUESTED`. Si rechaza, vuelve al
-   implementador.
-7. **Pausa (puerta de cierre, en los tres flujos).** El orquestador muestra lo
-   hecho —y la objeción por delante si hubo `APPROVED_WITH_OBJECTION`— y espera
-   aprobación humana.
-8. Solo entonces el **orquestador** marca `done` y mueve el resumen a
-   `progress/history.md`. Ningún otro agente escribe `done`.
+Esta tabla es un resumen para orientarte rápido. La **fuente única** del
+protocolo completo — Puerta de Desafío (gatillos G1-G4), FASE Grill, secuencia
+Casos A-G, y las reglas de "Qué NO haces" — es
+**`.claude/agents/orquestador.md`**. No dupliques ese contenido aquí: si algo
+de otro archivo lo contradice, gana `orquestador.md`.
 
 ## 5. Cierre de sesión (lifecycle)
 

@@ -16,6 +16,7 @@ trazabilidad `R<n>` o `tasks.md` sería rechazar por algo que nunca debió exist
 | C6 | Sin TODOs, debug prints, ni código comentado | F1 · F2 · F3 |
 | C7 | La feature respeta `docs/architecture.md` y `docs/conventions.md` | F1 · F2 · F3 |
 | C8 | Trazabilidad `A<n>` ↔ tests completa, y el mapa de `progress/plan_<name>.md` coincide con el código real | **solo F2** |
+| C9 | Cobertura cumple el mínimo de `docs/verification.md` (60% código nuevo, 80%+ funciones críticas) | F1 · F2 · F3 |
 
 ## Eje sustancia (no es un checkpoint, es un juicio)
 

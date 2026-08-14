@@ -20,18 +20,21 @@ que usa para desarrollarse.
 
 ## Instalación
 
-### Opción 1 — Instalador (recomendado)
+### Requisitos de instalación
 
-Plataformas publicadas: `linux` y `darwin` (macOS), en `amd64` y `arm64`.
+- SO: `linux` o `darwin` (macOS). Arquitectura: `amd64` o `arm64`.
+- `curl` disponible en el sistema.
+- Sin `sudo`: instala a nivel de usuario, no toca rutas del sistema.
+
+### Instalación
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/main/install.sh | sh
 ```
 
-Instala **a nivel de usuario** en `~/.local/bin/harness` (sin `sudo`, sin tocar
-rutas del sistema). El script detecta OS y arquitectura, resuelve la última
-release, verifica el checksum SHA-256 contra `checksums.txt` y avisa si
-`~/.local/bin` no está en el `PATH`.
+Instala en `~/.local/bin/harness`. El script detecta OS y arquitectura,
+resuelve la última release, verifica el checksum SHA-256 contra
+`checksums.txt` y avisa si `~/.local/bin` no está en el `PATH`.
 
 Variables de entorno:
 
@@ -44,41 +47,6 @@ Variables de entorno:
 curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/main/install.sh \
   | VERSION=0.3.0 BIN_DIR=~/bin sh
 ```
-
-### Opción 2 — Descarga manual del binario
-
-```bash
-VERSION=0.3.0
-
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64)  ARCH=amd64 ;;
-  aarch64) ARCH=arm64 ;;
-esac
-
-curl -sSL "https://github.com/AlvaroEng98/April-Agent-harness/releases/download/v${VERSION}/harness_${VERSION}_${OS}_${ARCH}.tar.gz" \
-  | tar -xz harness
-
-mkdir -p ~/.local/bin && install -m 755 harness ~/.local/bin/harness
-harness version
-```
-
-Los checksums de cada release están en `checksums.txt` junto a los binarios.
-
-### Opción 3 — Compilar desde el código fuente
-
-Requiere Go 1.25 o superior.
-
-```bash
-git clone https://github.com/AlvaroEng98/April-Agent-harness.git
-cd April-Agent-harness
-go build -o harness .
-mkdir -p ~/.local/bin && install -m 755 harness ~/.local/bin/harness
-```
-
-El binario embebe todas las plantillas (`go:embed`), así que es autocontenido:
-puedes moverlo o borrar el clon después de compilar.
 
 ### Requisitos del proyecto scaffoldeado
 

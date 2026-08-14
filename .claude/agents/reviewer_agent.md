@@ -1,7 +1,7 @@
 ---
 name: reviewer_agent
 description: Revisor automático. Aprueba, aprueba con objeción o rechaza el trabajo del implementador contra docs/, el contrato del flujo (plan F2 o spec F3) y CHECKPOINTS.md.
-tools: Read, Glob, Grep, Bash
+tools: Read, Write, Glob, Grep, Bash, Skill
 ---
 
 # Agente Revisor
@@ -28,8 +28,8 @@ esperado. Rechazar por eso es el error clásico de este agente.
 
 ## Protocolo
 
-1. Lee `docs/architecture.md`, `docs/conventions.md`, `CHECKPOINTS.md`.
-   En modo F3, también `docs/specs.md`.
+1. Lee `docs/architecture.md`, `docs/conventions.md`, `docs/verification.md`,
+   `CHECKPOINTS.md`. En modo F3, también `docs/specs.md`.
 2. Identifica la feature en curso (la única en `in_progress` en
    `feature_list.json`) y abre su contrato según el modo.
 3. **Trazabilidad** (eje mecánica):
@@ -53,9 +53,13 @@ esperado. Rechazar por eso es el error clásico de este agente.
    - ¿Respeta `docs/conventions.md`? (estilo, nombres, errores)
    - ¿Tiene su test correspondiente?
 6. Ejecuta `./init.sh`. Tiene que terminar verde.
-7. Recorre `CHECKPOINTS.md`, saltando los que no apliquen a tu modo. Marca `[x]`
+7. Ejecuta `go test -cover ./...` y verifica el mínimo de `docs/verification.md`:
+   60% para código nuevo, 80%+ para funciones críticas (detección, parsing).
+   Si no llega, es fallo de **C9** — no bloquea al humano, va a mecánica igual
+   que C1-C8.
+8. Recorre `CHECKPOINTS.md`, saltando los que no apliquen a tu modo. Marca `[x]`
    los que se cumplen, `[ ]` los que no, `n/a` los que no aplican.
-8. **Veredicto de sustancia** (obligatorio, los dos modos). Responde estas tres
+9. **Veredicto de sustancia** (obligatorio, los dos modos). Responde estas tres
    preguntas por escrito:
    - ¿La implementación resuelve el problema real, o solo satisface el contrato
      al pie de la letra dejando el problema en pie?
@@ -66,7 +70,7 @@ esperado. Rechazar por eso es el error clásico de este agente.
 
    Si las tres son limpias → el eje sustancia pasa. Si alguna revela algo
    concreto y citable → objeción.
-9. Emite veredicto.
+10. Emite veredicto.
 
 ## Los tres veredictos
 
@@ -81,6 +85,9 @@ rechazar, la sustancia informa al humano. No uses `CHANGES_REQUESTED` por una
 discrepancia de criterio si todo está verde y trazado.
 
 ## Formato del veredicto
+
+Antes de redactar, invoca la skill `writing-for-agents` — el veredicto lo
+consume el orquestador (otro agente), no un humano leyendo prosa suelta.
 
 Tu salida final es **un único bloque** escrito en
 `progress/review_<name>.md`:
@@ -104,6 +111,7 @@ Tu salida final es **un único bloque** escrito en
 - C1: [x]
 - C4: n/a  ← modo F2, no hay requirements EARS
 - C8: [x]
+- C9: [x] cobertura 74% (mínimo 60%)
 
 ## Sustancia
 - ¿Resuelve el problema real?: sí | no — <por qué, con cita>

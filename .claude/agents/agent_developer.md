@@ -121,8 +121,6 @@ alternativa por tu cuenta**: objetar no te autoriza a cambiar el contrato.
 - ❌ Si una task no se puede completar sin desviarse del contrato, paras y
   reportas. NO inventes requirements ni decisiones de diseño nuevas:
   pide cambios al contrato primero.
-- ❌ Bajo ningun concepto toques las carpetas de migraciones, solo ejecutarlas via comando,
-  sino conozes el comando preguntar al usuario.
 - ✅ Toda escritura de código va acompañada de su test antes de pasar a
   la siguiente task.
 - ✅ Si una herramienta falla de manera inesperada, NO improvises un

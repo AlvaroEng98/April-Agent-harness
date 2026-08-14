@@ -64,6 +64,6 @@ TestMergeGitignore → main.go:mergeGitignore()
 
 | Problema | Causa | Solución |
 |----------|-------|----------|
-| `go build` falla | go.mod versión incorrecta | Verificar `go 1.22.0` |
+| `go build` falla | go.mod versión incorrecta | Verificar `go 1.25.0` |
 | Tests fallan | Import cycle | Revisar estructura de paquetes |
 | init.sh falla | Archivo faltante | Crear archivo o agregar a embed

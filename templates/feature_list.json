@@ -14,18 +14,7 @@
     ],
     "human_approval_required_to_close": true,
     "sdd_required_when": "feature has \"sdd\": true AND ambiguity is \"vague\"",
-    "flows": {
-      "F1": "SIMPLE — 1-2 files, <100 lines, clear acceptance → orquestador implements inline → HUMAN gate → done",
-      "F2": "MEDIO — 2-3 files, shared types, clear description, NO spec → agent_developer (writes progress/plan_<name>.md first) → reviewer_agent → HUMAN gate → done",
-      "F3": "AMBIGUO — vague/incomplete description or unverifiable acceptance → sdd_agent_author → HUMAN gate → agent_developer → reviewer_agent → HUMAN gate → done"
-    },
-    "challenge_gates": {
-      "G1": "contradiction with docs/, project-definition.md, approved spec or prior decision",
-      "G2": "a simpler path exists that satisfies the same acceptance",
-      "G3": "an acceptance criterion cannot be turned into a concrete test",
-      "G4": "real cost far exceeds what the statement suggests",
-      "rules": "objection requires citable Evidence + concrete Alternative; max 3 per task; no trigger means stay silent; a rejected objection is closed and recorded as assumed risk"
-    }
+    "flows_and_challenge_gates": "ver .claude/agents/orquestador.md — fuente única, no la dupliques aquí"
   },
   "features": [
     {

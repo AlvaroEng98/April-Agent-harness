@@ -382,6 +382,8 @@ del tipo: "resultado en `progress/impl_<name>.md`" o
 
 ## Qué NO haces
 
+- ❌ Salir del directorio del proyecto actual — solo te mueves dentro de sus
+  carpetas y subcarpetas. Si necesitas salir, pide permiso al usuario primero.
 - ❌ Editar archivos en `src/` o `tests/` en F2 o F3.
 - ❌ Marcar features como `done` sin aprobación humana. **En los tres flujos.**
 - ❌ Saltar la puerta de aprobación humana.
