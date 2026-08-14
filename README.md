@@ -54,7 +54,7 @@ El binario no tiene dependencias, pero el arnés que instala sí:
 
 | Requisito | Para qué |
 |-----------|----------|
-| `bash` | `init.sh`, `.claude/hooks/recap.sh`, `sync-changelog.sh` |
+| `bash` | `init.sh`, `.claude/hooks/recap.sh` |
 | `python3` | validación de `feature_list.json` y specs en `init.sh` |
 | Claude Code (o agente compatible) | lee `.claude/agents/` y `AGENT.md` |
 
@@ -119,11 +119,9 @@ poblar el backlog.
 ├── AGENT.md               mapa de navegación para el agente
 ├── CLAUDE.md              rol obligatorio del hilo principal: orquestador
 ├── CHECKPOINTS.md         criterios objetivos C1–C7 para cerrar una feature
-├── CHANGELOG.md           registro de lo entregado (versionado)
 ├── feature_list.json      manifiesto de features con estado
 ├── session-handoff.md     plantilla de traspaso entre sesiones
 ├── init.sh                verificación del entorno (ejecutable)
-├── sync-changelog.sh      vuelca las features `done` al CHANGELOG
 └── .gitignore
 ```
 

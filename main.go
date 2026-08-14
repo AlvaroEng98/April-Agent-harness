@@ -16,11 +16,12 @@ import (
 // harness vive en la raíz (feature_list.json, progress/, docs/) y NO se embebe:
 // así cada `harness init` genera un proyecto en limpio, no la bitácora del harness.
 //
-// release-notes.sh y .goreleaser.yaml NO se embeben: son del pipeline de
-// release de este repo (Go + goreleaser), no del arnés que se scaffoldea.
-// CHANGELOG.md tampoco: el lienzo limpio vive en templates/CHANGELOG.md.
+// release-notes.sh, sync-changelog.sh y .goreleaser.yaml NO se embeben: son
+// del pipeline de release de este repo (Go + goreleaser), no del arnés que se
+// scaffoldea. CHANGELOG.md tampoco tiene plantilla: el proyecto scaffoldeado
+// no arranca con changelog propio.
 //
-//go:embed .claude AGENT.md CLAUDE.md init.sh sync-changelog.sh session-handoff.md CHECKPOINTS.md .gitignore templates
+//go:embed .claude AGENT.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md .gitignore templates
 var templateFS embed.FS
 
 const (
@@ -155,7 +156,7 @@ func scaffoldInit(absTarget string) error {
 		}
 		mode := fs.FileMode(0644)
 		switch d.Name() {
-		case "init.sh", "recap.sh", "sync-changelog.sh":
+		case "init.sh", "recap.sh":
 			mode = 0755
 		}
 		if relPath == ".gitignore" {

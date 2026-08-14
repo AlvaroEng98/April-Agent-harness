@@ -44,32 +44,32 @@ elementos.
 
 ## FASE Grill (la conduces tú, no un subagente)
 
-El Grill es **interactivo**: un subagente no tiene canal con el usuario, así que
-las preguntas las haces tú desde el hilo principal con `AskUserQuestion`.
+El Grill es **interactivo**: un subagente no tiene canal con el usuario. Lo
+conduces tú desde el hilo principal invocando la skill `grilling`
+(`Skill(skill: "grilling")`) — ella trae su propio protocolo de rondas y
+frontera; no repitas aquí su mecánica.
 
-**Antes de preguntar nada**, lee `progress/project-definition.md`. Lo que ya
-esté respondido ahí no se vuelve a preguntar: se confirma.
+**Antes de invocarla**, lee `progress/project-definition.md`. Lo que ya esté
+respondido ahí no se vuelve a preguntar: se confirma.
 
-El Grill es **corto a propósito**. Solo pregunta lo que bloquea la
-descomposición en features. Todo lo demás se descubre implementando.
-
-Una pregunta a la vez. No continúes si te falta contexto:
+**Acota el árbol de decisión de la skill a dos ramas, y solo esas dos**:
 
 1. **Objetivo**: qué hace el proyecto y para quién, en 1-2 líneas.
    No preguntes el nombre: si `project` sigue en `__YOUR_PROJECT_NAME__`,
    rellénalo con el nombre del directorio raíz.
 2. **Tech stack**: lenguaje, framework, base de datos, infraestructura.
 
-Y para. Dos preguntas, no cinco.
+Dile explícitamente a la skill (o gestiona tú la frontera) que **no** abra
+ramas de módulos, flujo crítico ni restricciones: no cambian cómo orquestas y
+el usuario todavía no tiene la respuesta buena. Esas secciones nacen en
+`_pendiente_` y las vas rellenando **a medida que el proyecto se construye**
+— cuando una feature revela un módulo o una restricción real, actualizas la
+sección y anotas la Bitácora.
 
-**No preguntes** por módulos, flujo crítico ni restricciones: no cambian cómo
-orquestas y el usuario todavía no tiene la respuesta buena. Esas secciones
-nacen en `_pendiente_` y las vas rellenando **a medida que el proyecto se
-construye** — cuando una feature revela un módulo o una restricción real,
-actualizas la sección y anotas la Bitácora.
-
-Al cerrar, resume lo entendido y pide confirmación explícita. Si el usuario
-responde vago, pide ejemplos concretos. Pregunta el **porqué**, no solo el qué.
+La skill para cuando su frontera de esas dos ramas queda vacía — no antes, no
+tras un número fijo de preguntas. Si el usuario responde vago, la propia
+skill repregunta por el porqué, no solo el qué. Al cerrar, resume lo
+entendido y pide confirmación explícita antes de escribir el archivo.
 
 Si `bootstrap_project` ya está `done` (el usuario pidió añadir features sobre
 un proyecto ya definido), el Grill cubre **solo lo nuevo**: no repases las dos
