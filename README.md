@@ -2,7 +2,7 @@
   <img src="assets/banner.webp" alt="April Harness — Plan. Build. Test. Repeat." width="100%">
 </p>
 
-# April Agent Harness — `harness`
+# April Agent Harness — `apil`
 
 > CLI que scaffoldea un repositorio listo para **Spec-Driven Development (SDD)**
 > asistido por agentes de IA (Claude Code).
@@ -32,7 +32,7 @@ que usa para desarrollarse.
 curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/main/install.sh | sh
 ```
 
-Instala en `~/.local/bin/harness`. El script detecta OS y arquitectura,
+Instala en `~/.local/bin/apil`. El script detecta OS y arquitectura,
 resuelve la última release, verifica el checksum SHA-256 contra
 `checksums.txt` y avisa si `~/.local/bin` no está en el `PATH`.
 
@@ -40,12 +40,12 @@ Variables de entorno:
 
 | Variable | Efecto |
 |----------|--------|
-| `VERSION` | Instala una versión concreta en lugar de la última (`VERSION=0.3.0`) |
+| `VERSION` | Instala una versión concreta en lugar de la última (`VERSION=0.3.4`). Solo `v0.3.4` en adelante lleva el binario renombrado a `apil`; versiones anteriores publicaban `harness` y no son instalables con este script. |
 | `BIN_DIR` | Cambia el directorio destino (`BIN_DIR=~/bin`) |
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/main/install.sh \
-  | VERSION=0.3.0 BIN_DIR=~/bin sh
+  | VERSION=0.3.4 BIN_DIR=~/bin sh
 ```
 
 ### Requisitos del proyecto scaffoldeado
