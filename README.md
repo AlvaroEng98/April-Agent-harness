@@ -120,7 +120,6 @@ poblar el backlog.
 ├── CLAUDE.md              rol obligatorio del hilo principal: orquestador
 ├── CHECKPOINTS.md         criterios objetivos C1–C7 para cerrar una feature
 ├── CHANGELOG.md           registro de lo entregado (versionado)
-├── README.md              README del proyecto, con el flujo y los comandos
 ├── feature_list.json      manifiesto de features con estado
 ├── session-handoff.md     plantilla de traspaso entre sesiones
 ├── init.sh                verificación del entorno (ejecutable)

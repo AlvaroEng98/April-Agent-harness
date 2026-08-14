@@ -36,6 +36,11 @@ es el proceso que gobierna cómo se construyen las features.
   por `init.sh`.
 - `rules.flows` y `rules.challenge_gates` en `feature_list.json`.
 
+### Quitado
+- `templates/README.md`: no es el README de este repositorio, sino el que se
+  embebía en cada proyecto scaffoldeado; no aporta valor mantenerlo como
+  plantilla separada.
+
 ### Corregido
 - El flujo F2 (MEDIO, sin SDD) era inejecutable: `agent_developer` y
   `reviewer_agent` exigían `specs/<name>/` de forma incondicional, así que toda
