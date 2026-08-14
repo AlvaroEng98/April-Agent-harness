@@ -48,6 +48,18 @@ curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/mai
   | VERSION=0.3.4 BIN_DIR=~/bin sh
 ```
 
+### Actualización
+
+Con `apil` ya instalado, no hace falta repetir el curl a mano:
+
+```bash
+apil update            # última release, sobre el mismo directorio del binario actual
+apil update 0.3.4      # versión concreta
+```
+
+Internamente reejecuta `install.sh` con `BIN_DIR` fijado al directorio donde
+vive el binario en uso.
+
 ### Requisitos del proyecto scaffoldeado
 
 El binario no tiene dependencias, pero el arnés que instala sí:

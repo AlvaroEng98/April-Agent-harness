@@ -11,53 +11,68 @@
 
 ## Layer Structure
 
+`apil` no tiene capas de detección ni de UI interactiva: `init` siempre
+scaffoldea el mismo árbol embebido, sin preguntar nada. Ver
+`docs/adr/0001-scaffold-unico-sin-seleccion-interactiva.md` para por qué
+(existieron y se descartaron deliberadamente).
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    CLI Layer (main.go)                   │
-│  - Parseo de argumentos                                 │
-│  - Dispatch de comandos                                 │
+│  - Dispatch de comandos (init, update, version, help)    │
 └─────────────────────────────────────────────────────────┘
-                           │
-┌─────────────────────────────────────────────────────────┐
-│                  Detection Layer (detector.go)           │
-│  - Detección de herramientas AI instaladas              │
-│  - Lógica pura, sin dependencias de UI                  │
-└─────────────────────────────────────────────────────────┘
-                           │
-┌─────────────────────────────────────────────────────────┐
-│                    UI Layer (selector.go)                │
-│  - Selección interactiva de herramientas                │
-│  - Renderizado de terminal                              │
-└─────────────────────────────────────────────────────────┘
-                           │
-┌─────────────────────────────────────────────────────────┐
-│                  Template Layer (embed.FS)               │
-│  - Archivos embebidos del harness                       │
-│  - Copia y transformación de templates                  │
-└─────────────────────────────────────────────────────────┘
+              │                              │
+┌─────────────────────────────┐  ┌─────────────────────────┐
+│  Scaffold (scaffold.go)      │  │  Update (update.go)      │
+│  - scaffoldInit: compone     │  │  - Resuelve BIN_DIR/     │
+│    planScaffold + applyPlan  │  │    VERSION del entorno   │
+└─────────────────────────────┘  │  - Delega en install.sh  │
+              │                  │    (curl | sh)            │
+    ┌─────────┴─────────┐        └─────────────────────────┘
+    ▼                   ▼
+┌─────────────┐   ┌─────────────┐
+│ planScaffold│   │  applyPlan  │
+│ (decisión,  │   │ (I/O puro,  │
+│  sin I/O de │──▶│  ejecuta el │
+│  escritura) │   │  scaffoldPlan)│
+└─────────────┘   └─────────────┘
 ```
+
+`scaffoldInit` no decide ni escribe directamente: `planScaffold` decide (qué
+archivos, con qué modo, si hay merge de `.gitignore`, qué limpiar) y devuelve
+un `scaffoldPlan` como dato; `applyPlan` solo ejecuta ese plan con llamadas
+`os.*`. Ver `docs/adr/` y la feature `scaffold_decision_io_seam` (acceptance
+completo en `feature_list.json`) para el porqué de la costura.
 
 ## Dependency Rules
 
-- **UI Layer** puede dependeer de Detection y Template.
-- **Detection Layer** NO puede depender de UI.
-- **Template Layer** NO puede depender de UI ni Detection.
-- **CLI Layer** orquesta las demás capas.
+- **CLI Layer** (main.go: dispatch) orquesta Scaffold y Update; no contiene
+  lógica propia de ninguno de los dos.
+- **Scaffold** y **Update** no dependen entre sí.
+- **planScaffold** no llama `os.WriteFile`/`os.RemoveAll`/`os.MkdirAll`: solo
+  lee (`os.ReadDir`, `templateFS.ReadFile`) para decidir. **applyPlan** no
+  toma ninguna decisión de contenido: solo ejecuta las llamadas `os.*` que
+  `planScaffold` ya resolvió.
+- Ningún módulo del binario depende de `install.sh`: Update lo invoca como
+  proceso externo (ver `update.go:cmdUpdate`), no lo importa ni duplica su
+  lógica de descarga/checksum.
 
 ## Module Map
 
-| Módulo        | Archivo         | Responsabilidad                           |
-|---------------|-----------------|-------------------------------------------|
-| CLI           | main.go         | Entry point, parseo de args, dispatch     |
-| Detection     | detector.go     | Detectar herramientas AI instaladas       |
-| UI            | selector.go     | Interacción interactiva con usuario       |
-| Template      | embed.FS        | Copiar archivos del harness al destino    |
-| Config        | config.go       | Versión, rutas, archivos requeridos       |
+| Módulo       | Archivo   | Responsabilidad                                                            |
+|--------------|-----------|-----------------------------------------------------------------------------|
+| CLI          | main.go   | Entry point, dispatch de comandos, banner, usage                            |
+| Scaffold     | scaffold.go | `scaffoldInit`: compone `planScaffold` + `applyPlan`; `mergeGitignore`      |
+| planScaffold | scaffold.go | Decisión pura: arma el `scaffoldPlan` (archivos, modos, merge, dirs vacíos) a partir del embed.FS y del estado del destino, sin escribir nada |
+| applyPlan    | scaffold.go | Ejecutor delgado: aplica un `scaffoldPlan` ya decidido (`os.WriteFile`/`os.MkdirAll`/`os.RemoveAll`) y los mensajes de progreso |
+| Update       | update.go | `cmdUpdate` ejecuta lo que decide `buildUpdateCmd` (name/args/env, vía `updateEnv`) y reejecuta `install.sh` |
+| Config       | config.go | `version` (inyectada por ldflags en release)                                |
 
 ## Data Flow
 
 ```
-usuario → main.go → detector.go → selector.go → embed.FS → destino/
+usuario → apil init [dir]   → main.go → scaffoldInit → embed.FS → destino/
+usuario → apil update [ver] → main.go → cmdUpdate → install.sh (subproceso)
 ```
 
 ## Error Handling

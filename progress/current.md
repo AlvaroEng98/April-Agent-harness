@@ -1,20 +1,11 @@
 # Current Session
 
 ## Feature in progress
-- ID: 4
-- Name: rename_cli_to_apil
-- Status: in_progress
-
-Feature en curso: 4 — rename_cli_to_apil (modo F2)
-Plan: progress/plan_rename_cli_to_apil.md
-
-## Plan
-Renombrar la invocación del CLI de `harness` a `apil` en 3 sitios:
-printUsage() en main.go, project_name/binary en .goreleaser.yaml, y las
-menciones de invocación de comando en README.md (tabla, ejemplos, smoke
-test). No se toca el switch de comandos ni go.mod. Ver
-progress/plan_rename_cli_to_apil.md.
+Ninguna — backlog sin pending/in_progress.
 
 ## Progress Log
-- 2026-07-19 — move_recap_to_hooks (feature 3) aprobada por humano y marcada
-  done. Entrada en history.md.
+- 2026-08-14 — feature 4 (rename_cli_to_apil) y 5 (apil_update_command)
+  quedaron done en feature_list.json (current.md previo estaba desactualizado).
+- 2026-08-14 — feature 6 (scaffold_decision_io_seam) creada a partir de
+  revisión de arquitectura externa, clasificada F2, implementada,
+  aprobada por reviewer_agent y por humano. Cerrada done.

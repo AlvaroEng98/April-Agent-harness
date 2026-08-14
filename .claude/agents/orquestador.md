@@ -216,6 +216,18 @@ Objetar por objetar es peor que no objetar: entrena al usuario a ignorarte.
   `design.md`; el `reviewer_agent` emite además veredicto de sustancia y puede
   devolver `APPROVED_WITH_OBJECTION`.
 
+### Registro de decisiones (ADR)
+
+Antes de cerrar un Caso (B, C o D) — es decir, antes de pedir la aprobación
+humana final — comprueba si lo decidido cumple las tres condiciones de la
+skill `domain-modeling`: **difícil de revertir**, **sorprendente sin
+contexto** y **fruto de un trade-off real**. Si las tres se cumplen, invoca
+`Skill(skill: "domain-modeling")` para redactar el ADR en `docs/adr/` antes
+del `done`. No es automático en toda feature — la mayoría no califica. Una
+objeción G1-G4 que el usuario rechazó explícitamente (línea de arriba) es
+candidata típica: el riesgo quedó anotado en el plan/design, pero si además
+es difícil de revertir, el porqué también va a un ADR.
+
 ## Clasificación de complejidad (obligatorio antes de actuar)
 
 Antes de cualquier acción, clasifica la feature según esta matriz:

@@ -25,6 +25,8 @@
 | `specs/<feature>/`           | `requirements.md` + `design.md` + `tasks.md` (Kiro-style)                   | Antes de implementar cualquier feature con `"sdd": true` (flujo F3) |
 | `progress/plan_<feature>.md` | Contrato ligero del flujo F2: archivos + mapa `acceptance → test` + riesgo asumido | Antes de implementar (F2) y antes de revisar (F2) |
 | `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto                      | Antes de implementar |
+| `docs/adr/`                  | Decisiones arquitectónicas difíciles de revertir, con su porqué (skill `domain-modeling`) | Antes de deshacer o contradecir una decisión pasada |
+| `docs/skills-adoptadas.md`   | Qué skills externas se instalaron en `.claude/skills/`, cuáles encajan pero no se instalaron, y cuáles se descartaron por qué | Antes de instalar una skill nueva o reevaluar el catálogo |
 | `docs/conventions.md`        | Reglas de estilo, nombres, estructura                                       | Antes de escribir código |
 | `docs/specs.md`              | Proceso SDD: EARS notation, los 3 archivos, puerta de aprobación humana     | Antes de redactar o leer un spec |
 | `docs/verification.md`       | Cómo verificar que tu trabajo funciona (incluye trazabilidad requirements)  | Antes de declarar una tarea como `done` |
@@ -52,6 +54,10 @@
 - **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
 - **Deja el repositorio limpio** antes de cerrar la sesión (ver §5).
 - **Si no sabes algo, busca en `docs/`** antes de inventarlo.
+- **Toda decisión difícil de revertir, sorprendente sin contexto y fruto de un
+  trade-off real** se registra en `docs/adr/` (skill `domain-modeling`), no
+  solo en `docs/architecture.md` — así no vuelve a quedar desactualizado en
+  silencio.
 
 ## 4. Flujos de trabajo
 
