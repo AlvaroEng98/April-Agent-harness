@@ -8,20 +8,27 @@ import (
 	"testing"
 )
 
-// setupRecapDir arma un directorio temporal con una copia ejecutable de
-// recap.sh y los fixtures indicados, y devuelve su ruta. Como recap.sh se
-// auto-localiza vía BASH_SOURCE, ejecutarlo desde esta copia hace que sus
-// rutas relativas resuelvan contra el directorio temporal.
+// setupRecapDir arma un directorio temporal con el árbol .claude/hooks/ y una
+// copia ejecutable de recap.sh ahí dentro, más los fixtures indicados, y
+// devuelve la ruta raíz del temporal. recap.sh vive en .claude/hooks/, así
+// que al ejecutarlo sin CLAUDE_PROJECT_DIR seteada se ejercita su fallback de
+// auto-localización (subir dos niveles desde su propia ubicación) y sus
+// rutas relativas resuelven contra la raíz del directorio temporal.
 func setupRecapDir(t *testing.T, history, featureList, current string) string {
 	t.Helper()
 
 	dir := t.TempDir()
 
-	src, err := os.ReadFile("recap.sh")
-	if err != nil {
-		t.Fatalf("no se pudo leer recap.sh: %v", err)
+	hooksDir := filepath.Join(dir, ".claude", "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatalf("no se pudo crear .claude/hooks/: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "recap.sh"), src, 0755); err != nil {
+
+	src, err := os.ReadFile(filepath.Join(".claude", "hooks", "recap.sh"))
+	if err != nil {
+		t.Fatalf("no se pudo leer .claude/hooks/recap.sh: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hooksDir, "recap.sh"), src, 0755); err != nil {
 		t.Fatalf("no se pudo escribir recap.sh temporal: %v", err)
 	}
 
@@ -54,11 +61,13 @@ func setupRecapDir(t *testing.T, history, featureList, current string) string {
 	return dir
 }
 
-// runRecap ejecuta la copia de recap.sh del directorio dado y devuelve stdout.
+// runRecap ejecuta la copia de recap.sh en .claude/hooks/ del directorio
+// temporal dado y devuelve stdout. No setea CLAUDE_PROJECT_DIR a propósito,
+// para ejercitar el fallback de auto-localización (subir dos niveles).
 func runRecap(t *testing.T, dir string) string {
 	t.Helper()
 
-	out, err := exec.Command("bash", filepath.Join(dir, "recap.sh")).Output()
+	out, err := exec.Command("bash", filepath.Join(dir, ".claude", "hooks", "recap.sh")).Output()
 	if err != nil {
 		t.Fatalf("recap.sh falló: %v", err)
 	}

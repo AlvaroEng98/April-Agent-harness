@@ -7,7 +7,7 @@
 > CLI que scaffoldea un repositorio listo para **Spec-Driven Development (SDD)**
 > asistido por agentes de IA (Claude Code).
 
-`harness init` deja en tu proyecto el arnés completo: subagentes definidos
+`apil init` deja en tu proyecto el arnés completo: subagentes definidos
 (orquestador, planner, spec author, developer, reviewer), el manifiesto de
 features, los documentos de proceso y los scripts de verificación. A partir de
 ahí el flujo `pending → spec → aprobación humana → implementación → review → done`
@@ -54,7 +54,7 @@ El binario no tiene dependencias, pero el arnés que instala sí:
 
 | Requisito | Para qué |
 |-----------|----------|
-| `bash` | `init.sh`, `recap.sh`, `sync-changelog.sh` |
+| `bash` | `init.sh`, `.claude/hooks/recap.sh`, `sync-changelog.sh` |
 | `python3` | validación de `feature_list.json` y specs en `init.sh` |
 | Claude Code (o agente compatible) | lee `.claude/agents/` y `AGENT.md` |
 
@@ -63,16 +63,16 @@ El binario no tiene dependencias, pero el arnés que instala sí:
 ## Uso
 
 ```bash
-harness init mi-proyecto   # scaffoldea en ./mi-proyecto (lo crea si no existe)
-harness init .             # scaffoldea en el directorio actual
-harness init               # equivalente a `harness init .`
+apil init mi-proyecto   # scaffoldea en ./mi-proyecto (lo crea si no existe)
+apil init .             # scaffoldea en el directorio actual
+apil init               # equivalente a `apil init .`
 ```
 
 | Comando | Qué hace |
 |---------|----------|
-| `harness init [dir]` | Genera la estructura del arnés en `dir` (por defecto `.`) |
-| `harness version` | Imprime la versión (`-v`, `--version`) |
-| `harness help` | Muestra la ayuda (`-h`, `--help`) |
+| `apil init [dir]` | Genera la estructura del arnés en `dir` (por defecto `.`) |
+| `apil version` | Imprime la versión (`-v`, `--version`) |
+| `apil help` | Muestra la ayuda (`-h`, `--help`) |
 
 ### Comportamiento sobre un directorio no vacío
 
@@ -98,13 +98,13 @@ poblar el backlog.
 
 ---
 
-## Qué genera `harness init`
+## Qué genera `apil init`
 
 ```
 ├── .claude/
 │   ├── agents/            5 subagentes: orquestador, planner, spec author,
 │   │                      developer, reviewer
-│   ├── hooks/             SessionStart hook que inyecta el recap del proyecto
+│   ├── hooks/             recap.sh — recap de estado, hook SessionStart
 │   └── settings.json      permisos + registro del hook
 ├── docs/
 │   ├── architecture.md    qué significa "hacer un buen trabajo" aquí
@@ -123,7 +123,6 @@ poblar el backlog.
 ├── feature_list.json      manifiesto de features con estado
 ├── session-handoff.md     plantilla de traspaso entre sesiones
 ├── init.sh                verificación del entorno (ejecutable)
-├── recap.sh               recap de estado, fuente única de verdad
 ├── sync-changelog.sh      vuelca las features `done` al CHANGELOG
 └── .gitignore
 ```
@@ -154,10 +153,12 @@ Detalle completo en el `AGENT.md` del proyecto generado (§4) y en
 
 ## Desarrollo de este repositorio
 
+Requiere Go `1.25.0` o superior instalado ([go.dev/dl](https://go.dev/dl/)).
+
 ```bash
-./init.sh        # verifica el arnés + compila + corre el recap
+./init.sh        # verifica el arnés + compila
 go test ./...    # tests
-go build -o harness . && ./harness init /tmp/prueba-harness   # smoke test
+go build -o apil . && ./apil init /tmp/prueba-harness   # smoke test
 ```
 
 ### Dónde vive qué
@@ -168,9 +169,9 @@ go build -o harness . && ./harness init /tmp/prueba-harness   # smoke test
 - **`templates/`**: el **lienzo limpio** de esos mismos archivos, lo que se
   embebe y se copia al proyecto destino. Si quieres cambiar lo que reciben los
   usuarios, edita aquí.
-- El resto de los archivos embebidos (`.claude/`, `AGENT.md`, `CLAUDE.md`,
-  `init.sh`, `recap.sh`, …) se toman de la raíz tal cual: son idénticos en este
-  repo y en el proyecto generado.
+- El resto de los archivos embebidos (`.claude/` —incluido `.claude/hooks/recap.sh`—,
+  `AGENT.md`, `CLAUDE.md`, `init.sh`, …) se toman de la raíz tal cual: son
+  idénticos en este repo y en el proyecto generado.
 
 La lista exacta de lo que se embebe está en la directiva `go:embed` de
 `main.go`. `templates/` se embebe entero, así que un archivo nuevo ahí entra

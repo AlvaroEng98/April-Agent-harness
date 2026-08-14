@@ -20,7 +20,7 @@ import (
 // release de este repo (Go + goreleaser), no del arnés que se scaffoldea.
 // CHANGELOG.md tampoco: el lienzo limpio vive en templates/CHANGELOG.md.
 //
-//go:embed .claude AGENT.md CLAUDE.md init.sh recap.sh sync-changelog.sh session-handoff.md CHECKPOINTS.md .gitignore templates
+//go:embed .claude AGENT.md CLAUDE.md init.sh sync-changelog.sh session-handoff.md CHECKPOINTS.md .gitignore templates
 var templateFS embed.FS
 
 const (
@@ -39,7 +39,7 @@ func main() {
 	case "init":
 		cmdInit()
 	case "version", "--version", "-v":
-		fmt.Printf("harness v%s\n", version)
+		fmt.Printf("apil v%s\n", version)
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -50,7 +50,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`Usage: harness <command>
+	fmt.Println(`Usage: apil <command>
 
 Commands:
   init [directory]    Scaffold project structure
@@ -88,15 +88,24 @@ func cmdInit() {
 		os.Exit(1)
 	}
 
+	if err := scaffoldInit(absTarget); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// scaffoldInit contiene la lógica de scaffolding de `harness init` sobre un
+// directorio destino ya resuelto a ruta absoluta. Se separa de cmdInit (que
+// depende de os.Args y de os.Exit) para poder testearla in-process contra un
+// directorio temporal.
+func scaffoldInit(absTarget string) error {
 	entries, err := os.ReadDir(absTarget)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		if err := os.MkdirAll(absTarget, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 	} else {
 		isExistingHarness := false
@@ -146,7 +155,7 @@ func cmdInit() {
 		}
 		mode := fs.FileMode(0644)
 		switch d.Name() {
-		case "init.sh", "recap.sh", "sync-changelog.sh", "session_start_recap.sh":
+		case "init.sh", "recap.sh", "sync-changelog.sh":
 			mode = 0755
 		}
 		if relPath == ".gitignore" {
@@ -169,8 +178,7 @@ func cmdInit() {
 		return nil
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	emptyDirs := []string{"src", "tests", "specs"}
@@ -190,6 +198,7 @@ func cmdInit() {
 	fmt.Println("  1. Edit feature_list.json with your project info")
 	fmt.Println("  2. Run ./init.sh to verify the environment")
 	fmt.Println("  3. Read AGENT.md to understand the workflow")
+	return nil
 }
 
 // mergeGitignore agrega al archivo existente las entradas del template que falten.

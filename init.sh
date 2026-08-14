@@ -140,21 +140,7 @@ else
 fi
 
 echo ""
-echo "── 5. Recap — estado del proyecto ──────────────────────"
-
-# Delega en recap.sh (fuente única de verdad). Cada línea no vacía de su
-# salida se muestra con ok(). El recap es informativo: si falta o no es
-# ejecutable, se advierte pero no se aborta la sección (no es bloqueante).
-if [ -x "./recap.sh" ]; then
-  while IFS= read -r line; do
-    [ -n "$line" ] && ok "$line"
-  done <<< "$(./recap.sh 2>/dev/null)"
-else
-  warn "recap.sh no encontrado o sin permisos de ejecución"
-fi
-
-echo ""
-echo "── 6. Resumen ──────────────────────────────────────────"
+echo "── 5. Resumen ──────────────────────────────────────────"
 
 if [ $EXIT_CODE -eq 0 ]; then
   ok "Entorno listo. Puedes empezar a trabajar."

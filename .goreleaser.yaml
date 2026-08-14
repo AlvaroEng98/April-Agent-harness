@@ -1,10 +1,10 @@
 version: 2
-project_name: harness
+project_name: apil
 before:
   hooks:
     - go mod tidy
 builds:
-  - binary: harness
+  - binary: apil
     main: .
     ldflags:
       - -s -w -X main.version={{.Version}}

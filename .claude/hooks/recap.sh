@@ -13,8 +13,15 @@
 #
 # Se auto-localiza al inicio para que las rutas relativas internas resuelvan
 # siempre contra la raíz del proyecto, sin importar desde dónde se invoque.
+# Vive en .claude/hooks/, así que la raíz es $CLAUDE_PROJECT_DIR si está
+# seteada (caso hook de Claude Code) o, si no, dos niveles arriba de este
+# script (.claude/hooks/ → raíz).
 
-cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  cd "$CLAUDE_PROJECT_DIR" || exit 1
+else
+  cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
+fi
 
 # 1. Última sesión — primera entrada '## ' de progress/history.md
 if [ -f "progress/history.md" ]; then
