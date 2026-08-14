@@ -1,10 +1,10 @@
 version: 2
-project_name: apil
+project_name: april
 before:
   hooks:
     - go mod tidy
 builds:
-  - binary: apil
+  - binary: april
     main: .
     ldflags:
       - -s -w -X main.version={{.Version}}

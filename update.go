@@ -25,7 +25,7 @@ func cmdUpdate() {
 		version = os.Args[2]
 	}
 
-	fmt.Printf("Actualizando apil en %s...\n", binDir)
+	fmt.Printf("Actualizando april en %s...\n", binDir)
 
 	name, args, env := buildUpdateCmd(binDir, version)
 	cmd := exec.Command(name, args...)
@@ -39,7 +39,7 @@ func cmdUpdate() {
 	}
 }
 
-// buildUpdateCmd decide qué comando correr para actualizar apil: siempre
+// buildUpdateCmd decide qué comando correr para actualizar april: siempre
 // "sh -c" contra installScriptURL, con el entorno que arma updateEnv. No
 // ejecuta nada — cmdUpdate es quien crea el *exec.Cmd y lo corre.
 func buildUpdateCmd(binDir, version string) (name string, args []string, env []string) {

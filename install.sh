@@ -13,7 +13,7 @@
 set -eu
 
 REPO="AlvaroEng98/April-Agent-harness"
-BINARY="apil"
+BINARY="april"
 
 err() {
   echo "error: $*" >&2

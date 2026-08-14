@@ -12,8 +12,8 @@ func TestUpdateEnv(t *testing.T) {
 	})
 
 	t.Run("con version explicita", func(t *testing.T) {
-		env := updateEnv(base, "/opt/apil", "0.3.4")
-		assertContains(t, env, "BIN_DIR=/opt/apil")
+		env := updateEnv(base, "/opt/april", "0.3.4")
+		assertContains(t, env, "BIN_DIR=/opt/april")
 		assertContains(t, env, "VERSION=0.3.4")
 	})
 
@@ -64,9 +64,9 @@ func TestBuildUpdateCmd(t *testing.T) {
 	})
 
 	t.Run("con version explicita", func(t *testing.T) {
-		_, _, env := buildUpdateCmd("/opt/apil", "0.3.4")
+		_, _, env := buildUpdateCmd("/opt/april", "0.3.4")
 
-		assertContains(t, env, "BIN_DIR=/opt/apil")
+		assertContains(t, env, "BIN_DIR=/opt/april")
 		assertContains(t, env, "VERSION=0.3.4")
 	})
 }

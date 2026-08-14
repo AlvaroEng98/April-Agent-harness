@@ -25,7 +25,7 @@ func main() {
 	case "update":
 		cmdUpdate()
 	case "version", "--version", "-v":
-		fmt.Printf("apil v%s\n", version)
+		fmt.Printf("april v%s\n", version)
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -36,11 +36,11 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`Usage: apil <command>
+	fmt.Println(`Usage: april <command>
 
 Commands:
   init [directory]    Scaffold project structure
-  update [version]    Update apil to the latest (or given) release
+  update [version]    Update april to the latest (or given) release
   version             Print version
   help                Show this help`)
 }

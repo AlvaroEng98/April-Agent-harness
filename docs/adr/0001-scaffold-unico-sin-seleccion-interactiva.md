@@ -1,6 +1,6 @@
 # Scaffold único (solo Claude Code), sin detección ni selección interactiva de herramientas
 
-`apil init` copia siempre el mismo árbol embebido (`.claude/agents/`, `AGENT.md`,
+`april init` copia siempre el mismo árbol embebido (`.claude/agents/`, `AGENT.md`,
 etc.), sin preguntar ni detectar qué agente de IA usa el usuario. Hasta
 `8517803` (31/07/2026) existió una capa de detección (`detector.go`) y una UI
 interactiva de selección multi-herramienta (`selector.go`, con soporte para

@@ -11,7 +11,7 @@
 
 ## Layer Structure
 
-`apil` no tiene capas de detección ni de UI interactiva: `init` siempre
+`april` no tiene capas de detección ni de UI interactiva: `init` siempre
 scaffoldea el mismo árbol embebido, sin preguntar nada. Ver
 `docs/adr/0001-scaffold-unico-sin-seleccion-interactiva.md` para por qué
 (existieron y se descartaron deliberadamente).
@@ -71,8 +71,8 @@ completo en `feature_list.json`) para el porqué de la costura.
 ## Data Flow
 
 ```
-usuario → apil init [dir]   → main.go → scaffoldInit → embed.FS → destino/
-usuario → apil update [ver] → main.go → cmdUpdate → install.sh (subproceso)
+usuario → april init [dir]   → main.go → scaffoldInit → embed.FS → destino/
+usuario → april update [ver] → main.go → cmdUpdate → install.sh (subproceso)
 ```
 
 ## Error Handling

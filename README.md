@@ -2,12 +2,12 @@
   <img src="assets/banner.webp" alt="April Harness — Plan. Build. Test. Repeat." width="100%">
 </p>
 
-# April Agent Harness — `apil`
+# April Agent Harness — `april`
 
 > CLI que scaffoldea un repositorio listo para **Spec-Driven Development (SDD)**
 > asistido por agentes de IA (Claude Code).
 
-`apil init` deja en tu proyecto el arnés completo: subagentes definidos
+`april init` deja en tu proyecto el arnés completo: subagentes definidos
 (orquestador, planner, spec author, developer, reviewer), el manifiesto de
 features, los documentos de proceso y los scripts de verificación. A partir de
 ahí el flujo `pending → spec → aprobación humana → implementación → review → done`
@@ -32,7 +32,7 @@ que usa para desarrollarse.
 curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/main/install.sh | sh
 ```
 
-Instala en `~/.local/bin/apil`. El script detecta OS y arquitectura,
+Instala en `~/.local/bin/april`. El script detecta OS y arquitectura,
 resuelve la última release, verifica el checksum SHA-256 contra
 `checksums.txt` y avisa si `~/.local/bin` no está en el `PATH`.
 
@@ -40,7 +40,7 @@ Variables de entorno:
 
 | Variable | Efecto |
 |----------|--------|
-| `VERSION` | Instala una versión concreta en lugar de la última (`VERSION=0.3.4`). Solo `v0.3.4` en adelante lleva el binario renombrado a `apil`; versiones anteriores publicaban `harness` y no son instalables con este script. |
+| `VERSION` | Instala una versión concreta en lugar de la última (`VERSION=0.3.4`). Solo las releases que publican el binario como `april` son instalables con este script; versiones anteriores usaban otro nombre de binario y no lo son. |
 | `BIN_DIR` | Cambia el directorio destino (`BIN_DIR=~/bin`) |
 
 ```bash
@@ -50,11 +50,11 @@ curl -fsSL https://raw.githubusercontent.com/AlvaroEng98/April-Agent-harness/mai
 
 ### Actualización
 
-Con `apil` ya instalado, no hace falta repetir el curl a mano:
+Con `april` ya instalado, no hace falta repetir el curl a mano:
 
 ```bash
-apil update            # última release, sobre el mismo directorio del binario actual
-apil update 0.3.4      # versión concreta
+april update            # última release, sobre el mismo directorio del binario actual
+april update 0.3.4      # versión concreta
 ```
 
 Internamente reejecuta `install.sh` con `BIN_DIR` fijado al directorio donde
@@ -75,16 +75,16 @@ El binario no tiene dependencias, pero el arnés que instala sí:
 ## Uso
 
 ```bash
-apil init mi-proyecto   # scaffoldea en ./mi-proyecto (lo crea si no existe)
-apil init .             # scaffoldea en el directorio actual
-apil init               # equivalente a `apil init .`
+april init mi-proyecto   # scaffoldea en ./mi-proyecto (lo crea si no existe)
+april init .             # scaffoldea en el directorio actual
+april init               # equivalente a `april init .`
 ```
 
 | Comando | Qué hace |
 |---------|----------|
-| `apil init [dir]` | Genera la estructura del arnés en `dir` (por defecto `.`) |
-| `apil version` | Imprime la versión (`-v`, `--version`) |
-| `apil help` | Muestra la ayuda (`-h`, `--help`) |
+| `april init [dir]` | Genera la estructura del arnés en `dir` (por defecto `.`) |
+| `april version` | Imprime la versión (`-v`, `--version`) |
+| `april help` | Muestra la ayuda (`-h`, `--help`) |
 
 ### Comportamiento sobre un directorio no vacío
 
@@ -110,7 +110,7 @@ poblar el backlog.
 
 ---
 
-## Qué genera `apil init`
+## Qué genera `april init`
 
 ```
 ├── .claude/
@@ -168,7 +168,7 @@ Requiere Go `1.25.0` o superior instalado ([go.dev/dl](https://go.dev/dl/)).
 ```bash
 ./init.sh        # verifica el arnés + compila
 go test ./...    # tests
-go build -o apil . && ./apil init /tmp/prueba-harness   # smoke test
+go build -o april . && ./april init /tmp/prueba-harness   # smoke test
 ```
 
 ### Dónde vive qué
