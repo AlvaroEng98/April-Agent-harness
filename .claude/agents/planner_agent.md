@@ -61,7 +61,7 @@ flujo de construcción** que usará el orquestador, así que no es decorativo:
 
 | Valor | Criterio | Flujo que habilita | Ejemplo |
 |-------|----------|--------------------|---------|
-| `"clear"` | Descripción específica, `acceptance` verificables y concretos, 1-2 archivos | **F1** o **F2** — el orquestador decide midiendo el alcance real | "Agregar campo `email` al modelo User con validación de formato" |
+| `"clear"` | Descripción específica, `acceptance` verificables y concretos | **F2** — único flujo para features claras | "Agregar campo `email` al modelo User con validación de formato" |
 | `"vague"` | Descripción genérica, `acceptance` con criterios no verificables, o requiere investigación | **F3 (SDD) obligatorio** — el orquestador no puede bajarlo | "Mejorar la seguridad de la aplicación", "Optimizar el rendimiento" |
 
 **Regla**: Si dudas entre `clear` y `vague`, asigna `"vague"`. Es mejor

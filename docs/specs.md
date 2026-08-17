@@ -6,12 +6,12 @@
 
 | Flujo | Contrato | Quién lo escribe | Puertas humanas |
 |-------|----------|------------------|-----------------|
-| **F1 Directo** | el `acceptance` de `feature_list.json` | nadie, se usa tal cual | 1 (cierre) |
 | **F2 Delegado** | `progress/plan_<feature>.md` | `agent_developer`, antes de codear | 1 (cierre) |
 | **F3 SDD** | `specs/<feature>/{requirements,design,tasks}.md` | `sdd_agent_author`, antes de codear | 2 (spec + cierre) |
 
-Los tres flujos y la Puerta de Desafío están definidos en
-`.claude/agents/orquestador.md` y resumidos en `AGENT.md` §4.
+Los dos flujos y la Puerta de Desafío están definidos en
+`.claude/agents/orquestador.md` — es la fuente única, no se resumen en ningún
+otro archivo.
 
 ---
 
@@ -98,7 +98,7 @@ pending → [sdd_agent_author] → spec_ready → ⏸ HUMANO → in_progress
         → [agent_developer → reviewer_agent] → ⏸ HUMANO → done
 ```
 
-F1 y F2 tienen solo la puerta de cierre.
+F2 tiene solo la puerta de cierre.
 
 ### requirements.md — EARS estricto
 
@@ -170,13 +170,12 @@ rechaza si queda alguna `[ ]` sin justificación documentada.
 
 ---
 
-## Trazabilidad (regla dura en los tres flujos)
+## Trazabilidad (regla dura en los dos flujos)
 
 Cambia el identificador, no el principio:
 
 | Flujo | Regla |
 |-------|-------|
-| F1 | Cada criterio del `acceptance` tiene al menos un test concreto. |
 | F2 | Cada `A<n>` tiene al menos un test concreto, y el mapa `A<n> → test` de `progress/plan_<name>.md` coincide con el código real. |
 | F3 | Cada `R<n>` tiene al menos un test concreto, y cada test se mapea a un `R<n>`. |
 
@@ -193,14 +192,13 @@ Un plan o spec que promete tests que no existen es rechazo, no advertencia.
 
 ## Cuándo NO aplica SDD
 
-- Features con `"sdd": false`, o sin el campo `sdd` → van por **F1** o **F2**
-  según su alcance real.
+- Features con `"sdd": false`, o sin el campo `sdd` → van por **F2**.
 - `bootstrap_project` tiene su propio protocolo (Caso F del orquestador) y no
   pasa ni por la matriz de complejidad ni por SDD.
 
 **`"sdd": true` fuerza F3, sin excepción.** No es una preferencia: `init.sh`
 valida que toda feature `sdd:true` en estado `spec_ready`/`in_progress`/`done`
-tenga sus 3 archivos en `specs/<name>/`. Clasificarla F1 o F2 deja el build en
+tenga sus 3 archivos en `specs/<name>/`. Clasificarla F2 deja el build en
 rojo. Por eso el `planner_agent` mantiene la invariante
 `sdd == (ambiguity == "vague")` en las features nuevas.
 

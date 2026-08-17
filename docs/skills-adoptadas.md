@@ -22,7 +22,7 @@ Sin conflicto con lo existente; pendientes de decisión explícita de instalar.
 
 | Skill | Qué hace | Por qué encaja |
 |-------|----------|-----------------|
-| `diagnosing-bugs` | Disciplina de 6 fases para bugs difíciles: reproducir/minimizar, hipótesis falsables, instrumentar, fix + test de regresión en la costura correcta. | Este repo no tiene equivalente propio; no pisa a `orquestador`/F1-F2-F3 (esos son de entrega de features, no de debugging). |
+| `diagnosing-bugs` | Disciplina de 6 fases para bugs difíciles: reproducir/minimizar, hipótesis falsables, instrumentar, fix + test de regresión en la costura correcta. | Este repo no tiene equivalente propio; no pisa a `orquestador`/F2-F3 (esos son de entrega de features, no de debugging). |
 | `tdd` | Referencia del ciclo rojo-verde: qué hace bueno a un test, dónde van, anti-patrones. | Refuerza a `agent_developer` al escribir tests, sin reemplazarlo. |
 | `resolving-merge-conflicts` | Resuelve merge/rebase en curso, hunk por hunk, rastreando intención original; nunca `--abort`. | Standalone, útil independiente del flujo de features. |
 | `git-guardrails-claude-code` (misc) | Hook `PreToolUse` que bloquea `push --force`, `reset --hard`, `clean -f`, `branch -D` antes de que el agente los ejecute. | Ya está como regla escrita en `CLAUDE.md` ("Git Safety Protocol"); esto la vuelve mecánica en vez de depender de que el agente "se acuerde". |
@@ -31,7 +31,7 @@ Sin conflicto con lo existente; pendientes de decisión explícita de instalar.
 ## Descartadas — conflicto real con el flujo existente
 
 Todas asumen un tracker de issues (GitHub/Linear) como fuente de verdad del
-backlog. Este repo ya tiene la suya: `feature_list.json` + F1/F2/F3 vía
+backlog. Este repo ya tiene la suya: `feature_list.json` + F2/F3 vía
 `orquestador`. Instalarlas correría dos sistemas de backlog en paralelo
 (gatillo G1 — contradicción con `.claude/agents/orquestador.md`).
 

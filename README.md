@@ -156,7 +156,7 @@ antes de escribir código, y la **aprobación humana del review** antes de marca
 (`requirements.md`, `design.md`, `tasks.md`) antes de que exista una línea de
 código.
 
-Detalle completo en el `AGENT.md` del proyecto generado (§4) y en
+Detalle completo en `.claude/agents/orquestador.md` del proyecto generado y en
 `docs/specs.md` de este repositorio.
 
 ---
