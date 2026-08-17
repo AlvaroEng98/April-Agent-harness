@@ -45,3 +45,7 @@ RECAP_*.md
 
 
 GUIA-INTEGRACION-SKILLS.md
+
+specs/
+tests/
+/session-handoff.md
