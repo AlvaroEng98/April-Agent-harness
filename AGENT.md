@@ -8,17 +8,20 @@
 
 ## 1. Antes de empezar (obligatorio)
 
-1. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
-2. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
+1. Ejecuta `./init.sh` primero, antes de cualquier otro paso. Si falla, **no
+   continúes**: no se puede avanzar con el entorno roto. Resuelve el fallo
+   antes de leer nada más o tocar código.
+2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
+3. Lee `config.json` para el proyecto, la descripción y las reglas del arnés.
+4. Lee `feature_list.json`. Toda feature nueva (`"sdd": true`) pasa por
    **Spec Driven Development** — ver `docs/specs.md` y §4 de este archivo.
-3. Ejecuta `./init.sh` y verifica que termina sin errores. Si falla, **para**
-   y resuelve el entorno antes de tocar código.
-4. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
+5. Lee `docs/specs.md` antes de tocar cualquier spec o feature `sdd: true`.
 
 ## 2. Mapa del repositorio
 
 | Archivo / carpeta            | Qué contiene                                                                | Cuándo leerlo |
 |------------------------------|-----------------------------------------------------------------------------|---------------|
+| `config.json`                | Identidad del proyecto (`project`, `description`) y reglas del arnés (`rules`) | Siempre, al empezar |
 | `feature_list.json`          | Lista de tareas con estado (`pending` / `spec_ready` / `in_progress` / `done` / `blocked`) | Siempre, al empezar |
 | `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
 | `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
@@ -42,9 +45,9 @@
   subcarpetas. Si necesitas salir, pide permiso al usuario primero.
 - **No declares una tarea `done` sin pruebas verdes.** Ejecuta `./init.sh` y
   asegúrate de que el bloque de tests pasa al 100%.
-- **No saltes la fase de spec en F3.** Toda feature con `"sdd": true` y
-  `"ambiguity": "vague"` debe pasar por `sdd_agent_author` y obtener aprobación
-  humana antes de tocar código.
+- **No saltes la fase de spec en F3.** Toda feature con `"sdd": true` debe
+  pasar por `sdd_agent_author` y obtener aprobación humana antes de tocar
+  código.
 - **No saltes la puerta de aprobación humana.** Existe en los tres flujos: el
   orquestador para antes de escribir `done`, siempre. En F3 hay dos puertas
   (spec y cierre).

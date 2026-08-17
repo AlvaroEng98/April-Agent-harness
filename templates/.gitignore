@@ -1,0 +1,9 @@
+# Proyecto scaffoldeado (target de `april init`): specs/ (specs SDD) y
+# tests/ (suite de test) son estado de trabajo, no se versionan de momento.
+# src/ SI se versiona — es el código de la aplicación objetivo, el
+# entregable real del proyecto scaffoldeado; por eso no aparece aquí.
+specs/
+tests/
+
+# Estado de sesión del proyecto scaffoldeado — no versionar.
+/session-handoff.md

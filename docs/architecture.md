@@ -1,4 +1,4 @@
-# Architecture — __YOUR_PROJECT_NAME__
+# Architecture — April-Agent-harness
 
 > Define qué significa "hacer un buen trabajo" en este proyecto.
 > Rellena este documento con la arquitectura real de tu proyecto.

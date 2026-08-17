@@ -20,24 +20,28 @@ EXIT_CODE=0
 
 echo "── 1. Verificando archivos base del arnés ──────────────"
 
-# feature_list.json es estado de desarrollo y NO está versionado (ver
-# .gitignore), así que en un clone limpio no existe. Se siembra desde el
-# template para que el arnés pueda arrancar sobre sí mismo. En un proyecto
-# ya scaffoldeado no hay templates/, así que ahí sí es un error real.
-if [ ! -f "feature_list.json" ]; then
-  if [ -f "templates/feature_list.json" ]; then
-    cp templates/feature_list.json feature_list.json
-    warn "feature_list.json no existía — sembrado desde templates/"
-  else
-    fail "Falta feature_list.json y no hay templates/ para sembrarlo."
-    fail "Ejecuta 'harness init .' para regenerarlo."
-    EXIT_CODE=1
+# feature_list.json y config.json son estado de desarrollo y NO están
+# versionados (ver .gitignore), así que en un clone limpio no existen. Se
+# siembran desde el template para que el arnés pueda arrancar sobre sí
+# mismo. En un proyecto ya scaffoldeado no hay templates/, así que ahí sí es
+# un error real.
+for seed in feature_list.json config.json; do
+  if [ ! -f "$seed" ]; then
+    if [ -f "templates/$seed" ]; then
+      cp "templates/$seed" "$seed"
+      warn "$seed no existía — sembrado desde templates/"
+    else
+      fail "Falta $seed y no hay templates/ para sembrarlo."
+      fail "Ejecuta 'harness init .' para regenerarlo."
+      EXIT_CODE=1
+    fi
   fi
-fi
+done
 
 BASE_FILES=(
   "AGENT.md"
   "feature_list.json"
+  "config.json"
   "progress/current.md"
   "docs/architecture.md"
   "docs/conventions.md"

@@ -12,34 +12,22 @@ import (
 
 // Se embeben el tooling (idéntico al que dogfoodea este repo) y el directorio
 // templates/, que contiene el LIENZO LIMPIO de los archivos con estado
-// (feature_list.json, progress/, docs/). El estado de trabajo del propio
-// harness vive en la raíz (feature_list.json, progress/, docs/) y NO se embebe:
-// así cada `harness init` genera un proyecto en limpio, no la bitácora del harness.
+// (feature_list.json, progress/, docs/, .gitignore). El estado de trabajo del
+// propio harness vive en la raíz (feature_list.json, progress/, docs/,
+// .gitignore) y NO se embebe: así cada `harness init` genera un proyecto en
+// limpio, no la bitácora ni las reglas de ignore del harness. El .gitignore
+// de la raíz de este repo tiene reglas propias del desarrollo del harness
+// (OS, IDE, build de Go, notas de sesión) que no aplican al proyecto
+// scaffoldeado; por eso el template vive aparte, en templates/.gitignore, con
+// solo las reglas que sí aplican al destino.
 //
 // release-notes.sh, sync-changelog.sh y .goreleaser.yaml NO se embeben: son
 // del pipeline de release de este repo (Go + goreleaser), no del arnés que se
 // scaffoldea. CHANGELOG.md tampoco tiene plantilla: el proyecto scaffoldeado
 // no arranca con changelog propio.
 //
-//go:embed .claude AGENT.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md .gitignore templates
+//go:embed .claude AGENT.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates
 var templateFS embed.FS
-
-// scaffoldGitignoreExtra son reglas que aplican SOLO al proyecto scaffoldeado,
-// no al propio harness (que sí versiona su specs/ y su session-handoff.md).
-// Van en código y no en el .gitignore de la raíz para no mezclar el ignore
-// del harness con el del proyecto que genera: el árbol de trabajo de este
-// repo y el del destino tienen reglas distintas aunque compartan archivo base.
-const scaffoldGitignoreExtra = `
-# Proyecto scaffoldeado (target de ` + "`april init`" + `): specs/ (specs SDD) y
-# tests/ (suite de test) son estado de trabajo, no se versionan de momento.
-# src/ SI se versiona — es el código de la aplicación objetivo, el
-# entregable real del proyecto scaffoldeado; por eso no aparece aquí.
-specs/
-tests/
-
-# Estado de sesión del proyecto scaffoldeado — no versionar.
-/session-handoff.md
-`
 
 // scaffoldFileWrite describe un único archivo a escribir en el destino: su
 // ruta relativa (para el mensaje de progreso), su ruta absoluta de destino,
@@ -136,7 +124,6 @@ func planScaffold(absTarget string) (scaffoldPlan, error) {
 			mode:     mode,
 		}
 		if relPath == ".gitignore" {
-			data = append(data, []byte(scaffoldGitignoreExtra)...)
 			if _, err := os.Stat(destPath); err == nil {
 				merged, err := mergeGitignore(destPath, data)
 				if err != nil {

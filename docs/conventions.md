@@ -1,4 +1,4 @@
-# Conventions — __YOUR_PROJECT_NAME__
+# Conventions — April-Agent-harness
 
 > Reglas de estilo, nombres y estructura del código.
 > Rellena este documento con las convenciones reales de tu proyecto.

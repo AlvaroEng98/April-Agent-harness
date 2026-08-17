@@ -1,4 +1,4 @@
-# Verification — __YOUR_PROJECT_NAME__
+# Verification — April-Agent-harness
 
 > Cómo verificar que el trabajo funciona.
 > Rellena este documento con la estrategia de verificación real de tu proyecto.

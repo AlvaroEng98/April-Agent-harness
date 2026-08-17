@@ -15,14 +15,14 @@ elementos.
 
 ## Protocolo de arranque
 
-1. Lee `AGENT.md` para orientarte.
-2. Lee `feature_list.json` y `progress/current.md`.
-3. Ejecuta `./init.sh`. Si falla, paras y reportas.
-4. **Recap de estado**: el recap lo muestra `init.sh` en el paso 5.
-   No dupliques esa información en chat. Si necesitas más detalle, lee
+1. Sigue `AGENT.md` §1 tal cual (orden incluido: `./init.sh` primero, si
+   falla paras; luego `progress/current.md`, `config.json`, `feature_list.json`,
+   `docs/specs.md`). No repitas aquí esa secuencia ni la reordenes.
+2. **Recap de estado**: el recap lo muestra `init.sh` en su último paso.
+   No dupliques esa información en chat. Si necesitas más detalle, relee
    `progress/current.md` y `feature_list.json`.
-5. **¿Hace falta planificar?** Evalúa con el `feature_list.json` que ya leíste
-   en el paso 2. La planificación se dispara **solo por estado explícito del
+3. **¿Hace falta planificar?** Evalúa con el `feature_list.json` que ya leíste
+   en AGENT.md §1. La planificación se dispara **solo por estado explícito del
    backlog**, nunca por heurística:
    - La feature `bootstrap_project` existe y su status **no** es `done` →
      **Caso F (Bootstrap)**: FASE Grill + `planner_agent`.
@@ -38,9 +38,9 @@ elementos.
    cerrado es un estado terminal legítimo; planificar más es decisión del
    usuario, no tuya.
 
-   **No infieras estado template** de `project == "__YOUR_PROJECT_NAME__"`:
-   ese campo es higiene de datos, no señal de planificación. Un repo con
-   features reales y `project` en placeholder no necesita Grill.
+   **No infieras estado template** de `project == "__YOUR_PROJECT_NAME__"` en
+   `config.json`: ese campo es higiene de datos, no señal de planificación. Un
+   repo con features reales y `project` en placeholder no necesita Grill.
 
 ## FASE Grill (la conduces tú, no un subagente)
 
@@ -55,8 +55,8 @@ respondido ahí no se vuelve a preguntar: se confirma.
 **Acota el árbol de decisión de la skill a dos ramas, y solo esas dos**:
 
 1. **Objetivo**: qué hace el proyecto y para quién, en 1-2 líneas.
-   No preguntes el nombre: si `project` sigue en `__YOUR_PROJECT_NAME__`,
-   rellénalo con el nombre del directorio raíz.
+   No preguntes el nombre: si `project` sigue en `__YOUR_PROJECT_NAME__` en
+   `config.json`, rellénalo con el nombre del directorio raíz.
 2. **Tech stack**: lenguaje, framework, base de datos, infraestructura.
 
 Dile explícitamente a la skill (o gestiona tú la frontera) que **no** abra

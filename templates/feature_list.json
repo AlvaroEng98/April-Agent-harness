@@ -1,32 +1,13 @@
 {
-  "project": "__YOUR_PROJECT_NAME__",
-  "description": "__ONE_LINE_DESCRIPTION_OF_YOUR_PROJECT__",
-  "rules": {
-    "one_feature_at_a_time": true,
-    "require_tests_to_close": true,
-    "require_approved_spec_to_implement": true,
-    "valid_status": [
-      "pending",
-      "spec_ready",
-      "in_progress",
-      "done",
-      "blocked"
-    ],
-    "human_approval_required_to_close": true,
-    "sdd_required_when": "feature has \"sdd\": true AND ambiguity is \"vague\"",
-    "flows_and_challenge_gates": "ver .claude/agents/orquestador.md — fuente única, no la dupliques aquí"
-  },
   "features": [
     {
       "id": 1,
-      "name": "bootstrap_project",
       "title": "Definir el proyecto y poblar el backlog",
-      "description": "Feature semilla que trae el template. El orquestador conduce la FASE Grill, escribe progress/project-definition.md, rellena los placeholders de los ficheros auxiliares (feature_list.json, docs/) y lanza planner_agent para descomponer el backlog. No se escribe código de aplicación en esta feature.",
+      "description": "Feature semilla que trae el template. El orquestador conduce la FASE Grill, escribe progress/project-definition.md, rellena los placeholders de los ficheros auxiliares (config.json, docs/) y lanza planner_agent para descomponer el backlog. No se escribe código de aplicación en esta feature.",
       "sdd": false,
-      "ambiguity": "clear",
       "acceptance": [
         "progress/project-definition.md existe con ## Objetivo y ## Tech stack rellenos (no _pendiente_)",
-        "feature_list.json tiene project y description reales (sin __YOUR_PROJECT_NAME__ ni __ONE_LINE_DESCRIPTION_OF_YOUR_PROJECT__)",
+        "config.json tiene project y description reales (sin __YOUR_PROJECT_NAME__ ni __ONE_LINE_DESCRIPTION_OF_YOUR_PROJECT__)",
         "docs/architecture.md, docs/conventions.md y docs/verification.md no contienen __YOUR_PROJECT_NAME__",
         "feature_list.json tiene al menos una feature de producto en pending con id >= 2",
         "El humano aprobó el backlog antes de cerrar esta feature"

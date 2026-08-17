@@ -238,6 +238,74 @@ func TestCmdInitScaffoldsEmptyDir(t *testing.T) {
 	}
 }
 
+// TestCmdInitGitignoreEsMinimo cubre que el .gitignore que escribe
+// scaffoldInit en un destino vacío viene de templates/.gitignore (el lienzo
+// mínimo para el proyecto scaffoldeado: specs/, tests/, session-handoff.md),
+// no del .gitignore de la raíz de este repo (que trae reglas propias del
+// desarrollo del harness — OS, IDE, build de Go — irrelevantes para el
+// destino). Regresión directa: go:embed excluye por defecto los archivos que
+// empiezan con "." dentro de un patrón de directorio salvo que se declare
+// "all:templates"; sin ese prefijo, templates/.gitignore no se empotra y el
+// destino queda sin .gitignore.
+func TestCmdInitGitignoreEsMinimo(t *testing.T) {
+	dest := t.TempDir()
+
+	if _, err := captureStdout(t, func() error {
+		return scaffoldInit(dest)
+	}); err != nil {
+		t.Fatalf("scaffoldInit falló: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, ".gitignore"))
+	if err != nil {
+		t.Fatalf("no se creó .gitignore en el destino: %v", err)
+	}
+	want, err := os.ReadFile(filepath.Join("templates", ".gitignore"))
+	if err != nil {
+		t.Fatalf("no se pudo leer templates/.gitignore: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf(".gitignore del destino no coincide con templates/.gitignore\nesperado:\n%s\nobtenido:\n%s", want, got)
+	}
+
+	for _, unwanted := range []string{".DS_Store", "__pycache__", "GUIA-INTEGRACION-SKILLS.md"} {
+		if strings.Contains(string(got), unwanted) {
+			t.Errorf(".gitignore del destino no debería traer reglas del propio harness (%q)", unwanted)
+		}
+	}
+}
+
+// TestCmdInitGitignoreExistenteHaceMerge cubre que, si el destino ya tiene un
+// .gitignore propio, scaffoldInit lo conserva y solo añade al final las
+// líneas del template que falten (comportamiento de mergeGitignore, ejercido
+// aquí a través del flujo completo de scaffoldInit).
+func TestCmdInitGitignoreExistenteHaceMerge(t *testing.T) {
+	dest := t.TempDir()
+	existing := "node_modules/\n.env\n"
+	if err := os.WriteFile(filepath.Join(dest, ".gitignore"), []byte(existing), 0644); err != nil {
+		t.Fatalf("no se pudo preparar .gitignore preexistente: %v", err)
+	}
+
+	if _, err := captureStdout(t, func() error {
+		return scaffoldInit(dest)
+	}); err != nil {
+		t.Fatalf("scaffoldInit falló: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, ".gitignore"))
+	if err != nil {
+		t.Fatalf("no se pudo leer .gitignore del destino: %v", err)
+	}
+	if !strings.HasPrefix(string(got), existing) {
+		t.Errorf("el .gitignore preexistente debe preservarse al inicio, se obtuvo:\n%s", got)
+	}
+	for _, want := range []string{"specs/", "tests/", "/session-handoff.md"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("falta la línea %q tras el merge:\n%s", want, got)
+		}
+	}
+}
+
 // TestCmdInitExistingHarnessRegeneratesAgents cubre la rama
 // "isExistingHarness" de scaffoldInit (la lógica de cmdInit): cuando el
 // directorio destino ya contiene AGENT.md o feature_list.json,
