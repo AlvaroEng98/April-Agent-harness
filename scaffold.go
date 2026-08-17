@@ -184,14 +184,15 @@ func applyPlan(plan scaffoldPlan) error {
 		}
 	}
 
+	created, updated := 0, 0
 	for _, fw := range plan.files {
 		if err := os.WriteFile(fw.destPath, fw.content, fw.mode); err != nil {
 			return err
 		}
 		if fw.isUpdate {
-			fmt.Printf("  Updated %s\n", fw.relPath)
+			updated++
 		} else {
-			fmt.Printf("  Created %s\n", fw.relPath)
+			created++
 		}
 	}
 
@@ -199,8 +200,17 @@ func applyPlan(plan scaffoldPlan) error {
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: could not create %s/\n", filepath.ToSlash(dirPath))
 		} else {
-			fmt.Printf("  Created %s/\n", filepath.ToSlash(dirPath))
+			created++
 		}
+	}
+
+	switch {
+	case updated > 0 && created > 0:
+		fmt.Printf("  %d files created, %d updated\n", created, updated)
+	case updated > 0:
+		fmt.Printf("  %d files updated\n", updated)
+	default:
+		fmt.Printf("  %d files created\n", created)
 	}
 
 	fmt.Println()
