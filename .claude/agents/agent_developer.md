@@ -17,7 +17,7 @@ paras y lo pides**: no adivines, los contratos son distintos.
 | Modo | Cuándo | Contra qué implementas | Artefacto que escribes |
 |------|--------|------------------------|------------------------|
 | **F2** (Delegado) | Feature clara, sin SDD. **No existe** `specs/<name>/` | El `acceptance` de `feature_list.json` | `progress/plan_<name>.md` (antes de codear) + `progress/impl_<name>.md` |
-| **F3** (SDD) | Feature ambigua con spec aprobado | `specs/<name>/{requirements,design,tasks}.md` | `progress/impl_<name>.md` |
+| **F3** (SDD) | Feature ambigua con spec aprobado | `specs/<name>/spec.md` | `progress/impl_<name>.md` |
 
 ## Pre-condiciones
 
@@ -28,8 +28,7 @@ Siempre, en los dos modos:
 
 Solo en **modo F3**:
 
-- Existen los 3 archivos en `specs/<name>/`: `requirements.md`,
-  `design.md`, `tasks.md`. Si falta alguno, paras e informas.
+- Existe `specs/<name>/spec.md`. Si falta, paras e informas.
 
 Solo en **modo F2**:
 
@@ -51,9 +50,9 @@ compartido) en `progress/impl_<name>.md`.
 1. **Lee** `AGENT.md`, `docs/architecture.md`, `docs/conventions.md`.
    En modo F3, también `docs/specs.md`.
 2. **Lee el contrato**:
-   - **F3**: el spec completo en `specs/<name>/`. Cada `T<n>` de `tasks.md` es
-     lo que vas a hacer; cada `R<n>` de `requirements.md` es lo que debe quedar
-     verdadero al final.
+   - **F3**: `specs/<name>/spec.md` completo. Cada `US<n>` de `## Historias de
+     usuario` es lo que debe quedar verdadero al final; `## Decisiones de
+     implementación` es qué módulos tocar/crear y cómo.
    - **F2**: el `acceptance` de la feature en `feature_list.json`. Cada criterio
      es un `A<n>` numerado por su orden en el array.
 3. **Solo en F2 — escribe `progress/plan_<name>.md` ANTES de tocar código**:
@@ -77,15 +76,16 @@ compartido) en `progress/impl_<name>.md`.
    detectar el problema antes de escribir 200 líneas, no después.
 4. **Anota** en `progress/current.md`:
    - `Feature en curso: <id> — <name> (modo F2|F3)`
-   - `Plan: las tasks T1..Tn de specs/<name>/tasks.md` (F3) o
+   - `Plan: las historias US1..USn de specs/<name>/spec.md` (F3) o
      `Plan: progress/plan_<name>.md` (F2)
 5. **Implementa**:
-   - **F3**: para cada task `T<n>` **en orden** — implementa el cambio, escribe
-     su test si la task lo incluye, marca `[x] T<n>` en `tasks.md`.
+   - **F3**: para cada `US<n>` **en orden** — implementa el comportamiento
+     guiándote por los módulos de `## Decisiones de implementación`, y
+     escribe su test antes de pasar a la siguiente historia.
    - **F2**: para cada archivo del plan — implementa el cambio y escribe su test
      antes de pasar al siguiente.
 6. **Verifica** ejecutando `./init.sh`. Si falla → vuelve al paso 5.
-7. **Trazabilidad**: confirma que cada `R<n>` (F3) o cada `A<n>` (F2) está
+7. **Trazabilidad**: confirma que cada `US<n>` (F3) o cada `A<n>` (F2) está
    cubierto por al menos un test concreto. Anota el mapa en
    `progress/impl_<name>.md`.
 8. **No marques `done` tú mismo. Nunca.** El status `done` lo escribe el
@@ -95,7 +95,7 @@ compartido) en `progress/impl_<name>.md`.
 ## Reglas duras
 
 - ❌ En modo F3, si la feature no está en `in_progress` con spec aprobado, paras.
-- ❌ En modo F2, no crees `specs/<name>/` ni escribas requirements en EARS.
+- ❌ En modo F2, no crees `specs/<name>/` ni escribas un spec.
   Si la feature necesita eso, es que era F3: paras y lo dices.
 - ❌ Nunca cambies el status a `done`, ni siquiera si el reviewer aprobó.
   Solo puedes escribir `blocked` cuando paras.

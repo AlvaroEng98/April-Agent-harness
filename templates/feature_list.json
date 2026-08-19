@@ -1,14 +1,29 @@
 {
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "valid_status": [
+      "pending",
+      "spec_ready",
+      "in_progress",
+      "done",
+      "blocked"
+    ],
+    "human_approval_required_to_close": true,
+    "sdd_required_when": "feature has \"sdd\": true",
+    "flows_and_challenge_gates": "ver .claude/agents/orquestador.md — fuente única, no la dupliques aquí"
+  },
   "features": [
     {
       "id": 1,
+      "name": "bootstrap_project",
       "title": "Definir el proyecto y poblar el backlog",
-      "description": "Feature semilla que trae el template. El orquestador conduce la FASE Grill, escribe progress/project-definition.md, rellena los placeholders de los ficheros auxiliares (config.json, docs/) y lanza planner_agent para descomponer el backlog. No se escribe código de aplicación en esta feature.",
+      "description": "El orquestador conduce la FASE Grill, escribe progress/project-definition.md, rellena los placeholders de los ficheros auxiliares (docs/) y lanza planner_agent para descomponer el backlog." ,
       "sdd": false,
       "acceptance": [
         "progress/project-definition.md existe con ## Objetivo y ## Tech stack rellenos (no _pendiente_)",
-        "config.json tiene project y description reales (sin __YOUR_PROJECT_NAME__ ni __ONE_LINE_DESCRIPTION_OF_YOUR_PROJECT__)",
-        "docs/architecture.md, docs/conventions.md y docs/verification.md no contienen __YOUR_PROJECT_NAME__",
+        "docs/architecture.md, docs/conventions.md y docs/verification.md tienen sus secciones rellenas por el Grill (sin _pendiente_ donde el humano ya respondió)",
         "feature_list.json tiene al menos una feature de producto en pending con id >= 2",
         "El humano aprobó el backlog antes de cerrar esta feature"
       ],
@@ -16,3 +31,4 @@
     }
   ]
 }
+

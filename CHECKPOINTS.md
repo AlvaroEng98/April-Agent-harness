@@ -4,15 +4,16 @@ Criterios objetivos usados por el `reviewer_agent` para evaluar una feature.
 
 La columna **Flujo** dice en qué flujos aplica el checkpoint. Un checkpoint que
 no aplica se marca `n/a`, no `[ ]`: en F2 no hay spec, así que exigir
-trazabilidad `R<n>` o `tasks.md` sería rechazar por algo que nunca debió existir.
+trazabilidad `US<n>` o cobertura de `spec.md` sería rechazar por algo que
+nunca debió existir.
 
 | ID | Criterio | Flujo |
 |----|----------|-------|
 | C1 | Código compila/interpreta sin errores | F2 · F3 |
 | C2 | `init.sh` pasa verde | F2 · F3 |
 | C3 | Todos los tests pasan | F2 · F3 |
-| C4 | Trazabilidad `R<n>` ↔ tests completa | **solo F3** |
-| C5 | `tasks.md` completamente marcado `[x]` | **solo F3** |
+| C4 | Trazabilidad `US<n>` (Historias de usuario de `spec.md`) ↔ tests completa | **solo F3** |
+| C5 | Todos los módulos de `## Decisiones de implementación` de `spec.md` fueron tocados | **solo F3** |
 | C6 | Sin TODOs, debug prints, ni código comentado | F2 · F3 |
 | C7 | La feature respeta `docs/architecture.md` y `docs/conventions.md` | F2 · F3 |
 | C8 | Trazabilidad `A<n>` ↔ tests completa, y el mapa de `progress/plan_<name>.md` coincide con el código real | **solo F2** |

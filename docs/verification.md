@@ -15,7 +15,8 @@
 
 ## Coverage
 
-<!-- Umbrales de cobertura aceptables. -->
+Mínimo exigido por C9 (`CHECKPOINTS.md`): 60% para código nuevo, 80%+ para
+funciones críticas (detección, parsing). Se mide con `go test -cover ./...`.
 
 ## Traceability Map Format
 

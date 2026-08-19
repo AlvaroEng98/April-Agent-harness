@@ -56,7 +56,10 @@ ante el usuario).
 `Directo` y `Planificación` **ejecutan igual**, como F2, una vez existe la
 entrada en `feature_list.json` — la única diferencia es quién la crea: en
 `Directo` la creas tú mismo (Caso B), en `Planificación` la crea
-`planner_agent` tras el Grill+Decomposer. `SDD` ejecuta como F3.
+`planner_agent` tras el Grill+Decomposer. `SDD` ejecuta como F3 — pero ahí la
+entrada **no** la creas tú ni `planner_agent`: la crea `sdd_agent_author`,
+como parte de escribir el spec (Caso A). Hasta que el spec existe, la feature
+no tiene fila en `feature_list.json`.
 
 ### F2 — Delegado (claro, sin SDD)
 
@@ -72,13 +75,14 @@ contigo antes de codear; es la traza que hace auditable un flujo sin spec.
 ### F3 — SDD (ambiguo, hay que hacer zoom)
 
 ```
-pending → [sdd_agent_author] → spec_ready → ⏸ HUMANO → in_progress
-        → [agent_developer → reviewer_agent] → ⏸ HUMANO → done
+(sin fila) → [sdd_agent_author escribe spec.md] → [planner_agent crea la fila]
+           → spec_ready → ⏸ HUMANO → in_progress
+           → [agent_developer → reviewer_agent] → ⏸ HUMANO → done
 ```
 
 **Dos puertas humanas**: una para aprobar el spec, otra para cerrar la feature.
 Ver `docs/specs.md`. NUNCA saltes la fase de spec en F3. NUNCA lances al
-`agent_developer` sobre una feature `pending` clasificada F3.
+`agent_developer` sobre una feature recién nacida de un spec sin aprobar.
 
 ## Puerta de Desafío (atraviesa los 3 flujos)
 
@@ -93,7 +97,7 @@ Dos reglas propias del orquestador que `docs/puerta-de-desafio.md` no cubre:
 - **Una objeción rechazada está cerrada.** Si el usuario reafirma su decisión,
   se ejecuta tal cual y no la vuelves a levantar en esta sesión.
 - **Toda objeción rechazada se anota**, no se borra: en
-  `progress/plan_<feature>.md` (F2) o en `design.md § Riesgo asumido` (F3).
+  `progress/plan_<feature>.md` (F2) o en `spec.md § Riesgo asumido` (F3).
   Si el riesgo se materializa, la traza existe.
 
 ### Intensidad por flujo
@@ -101,7 +105,7 @@ Dos reglas propias del orquestador que `docs/puerta-de-desafio.md` no cubre:
 - **F2**: objetas **antes de delegar** y esperas respuesta (bloqueante). El
   `agent_developer` que descubra un gatillo a mitad para con `blocked`.
 - **F3**: desafío formal. El `sdd_agent_author` escribe `## Desafío` en
-  `design.md`; el `reviewer_agent` emite además veredicto de sustancia y puede
+  `spec.md`; el `reviewer_agent` emite además veredicto de sustancia y puede
   devolver `APPROVED_WITH_OBJECTION`.
 
 ### Registro de decisiones (ADR)
@@ -125,9 +129,11 @@ cambian, cambian solo ahí.
 
 Para una feature que **ya existe** en `feature_list.json` (backlog ya
 planificado por `planner_agent`), no reclasifiques: lee directo los campos
-`sdd`/`ambiguity` que `planner_agent` ya fijó (ver Casos A/C abajo). Son
-restricciones, no pistas — `"ambiguity": "vague"` fuerza F3 sin excepción,
-`"sdd": false` + `"ambiguity": "clear"` fuerza F2 sin excepción.
+`sdd`/`ambiguity` que `planner_agent` ya fijó (ver Caso C abajo). Son
+restricciones, no pistas — `"sdd": false` + `"ambiguity": "clear"` fuerza F2
+sin excepción. Un bullet en `## Pendientes SDD` de
+`progress/project-definition.md` tampoco se reclasifica: `planner_agent` ya
+decidió que era SDD al no poder fijarle un `acceptance` verificable (Caso A).
 
 Anuncia el flujo elegido al usuario en una línea antes de actuar:
 `Flujo: Directo — 2 archivos, sin ambigüedad.`
@@ -144,19 +150,38 @@ Anuncia el flujo elegido al usuario en una línea antes de actuar:
 ## Cómo descomponer la tarea «implementa la siguiente feature pendiente»
 
 Mira el status de la primera feature no-`done` / no-`blocked` en
-`feature_list.json`:
+`feature_list.json` — `in_progress` (Caso G) antes que `spec_ready` (Caso D/E)
+antes que `pending` F2 (Caso C). Si no hay ninguna de esas y
+`progress/project-definition.md` tiene un bullet en `## Pendientes SDD`, ese
+es el siguiente trabajo (Caso A) — no hay fila que buscar en
+`feature_list.json`, la crea `sdd_agent_author` al terminar el spec.
 
 > Los `subagent_type` son exactamente estos, tal cual: `sdd_agent_author`,
 > `agent_developer`, `reviewer_agent`, `planner_agent`. No uses alias
 > (`implementer`, `spec_author`, `reviewer`): la llamada `Agent` falla.
 
-### Caso A — F3 SDD: status == `pending` + `ambiguity: "vague"`
+### Caso A — F3 SDD: tarea nueva clasificada `SDD`, o ítem en `## Pendientes SDD`
+
+No hay fila en `feature_list.json` todavía — esa es la señal de este Caso, no
+un `status`. Dispara con lo primero que aplique:
+
+- `design-flow` acaba de clasificar una tarea nueva como `SDD`, o
+- no hay nada más prioritario (ningún `in_progress`/`spec_ready`/`pending` F2)
+  y `progress/project-definition.md` tiene al menos un bullet en
+  `## Pendientes SDD`.
 
 1. **Puerta de Desafío** (intensidad F3): si hay gatillo, objeta y espera
    respuesta antes de lanzar nada.
-2. Lanza **1 subagente `sdd_agent_author`**.
-3. Redacta `specs/<name>/{requirements.md, design.md, tasks.md}` — incluida la
-   sección `## Desafío` de `design.md` — y cambia el status a `spec_ready`.
+2. Lanza **1 subagente `sdd_agent_author`**, pasándole en el prompt la tarea
+   cruda (si viene de `design-flow`) o indicándole que tome el primer bullet
+   de `## Pendientes SDD`. Redacta `specs/<name>/spec.md` — plantilla
+   `to-spec` (Historias de usuario, Decisiones de implementación/testing,
+   etc.) más la sección `## Desafío` al final. Termina con `spec_drafted ->
+   specs/<name>/`. Tú no tocas `feature_list.json` todavía.
+3. Lanza **1 subagente `planner_agent`** en **modo Spec-to-Feature**,
+   pasándole la ruta `specs/<name>/spec.md`. Crea la fila en
+   `feature_list.json` — `name`/`title`/`description`/`acceptance`
+   sintetizados del spec, directo en `status: "spec_ready"`.
 4. **PARAS** (puerta humana 1 de 2). No lanzas `agent_developer`. Tu mensaje:
    > "Spec finalizada en `specs/<name>/`. Revísalo y di **'aprobado'** para
    > continuar con la implementación, o pídeme cambios."
@@ -202,8 +227,8 @@ Desafío** (intensidad F2, bloqueante) igual que en Caso C.
    `specs/<name>/` como input. Trabaja a partir del spec, no del `acceptance`
    original.
 3. Cuando termine → lanza **1 `reviewer_agent`** en **modo F3**: verifica
-   trazabilidad tests ↔ requirements, que `tasks.md` queda completo y emite
-   veredicto de sustancia.
+   trazabilidad tests ↔ `US<n>`, que todos los módulos de `## Decisiones de
+   implementación` fueron tocados, y emite veredicto de sustancia.
 4. **PARAS** y pides **aprobación humana** antes de `done` (puerta 2 de 2),
    con la objeción por delante si hubo `APPROVED_WITH_OBJECTION`.
 
@@ -222,17 +247,20 @@ ni por el flujo SDD**: tiene su propio protocolo.
    existir `## Objetivo` todavía, su propio protocolo dispara el Grill antes
    del Decomposer. Las features de producto entran desde `id 2`;
    `bootstrap_project` se queda como `id 1` y no se renumera ni se borra.
-3. Rellena los placeholders de los ficheros auxiliares, con las respuestas
-   que `planner_agent` dejó en `progress/project-definition.md`:
-   - `feature_list.json`: `project` y `description` reales.
-   - `docs/architecture.md`, `docs/conventions.md`, `docs/verification.md`:
-     sustituye `__YOUR_PROJECT_NAME__` y rellena las secciones que el Grill ya
-     respondió. Lo que no sepas se queda como está — no lo inventes.
+3. Rellena las secciones de `docs/architecture.md` y `docs/conventions.md`
+   marcadas para completar por el Grill (p. ej. `_pendiente_`, el ejemplo de
+   stack en `architecture.md`), con las respuestas que `planner_agent` dejó en
+   `progress/project-definition.md`. Lo que el humano no haya respondido se
+   queda `_pendiente_` — no lo inventes. `docs/verification.md` no tiene
+   placeholders: es genérico y no se toca. `feature_list.json` no tiene campos
+   de proyecto que rellenar (solo `rules` + `features`) — no hay nada que hacer
+   ahí en este paso.
 4. **PARAS** y pides aprobación humana del backlog:
    > "Backlog poblado en `feature_list.json`. Revísalo y di **'aprobado'** para
    > cerrar `bootstrap_project` y arrancar la primera feature."
-5. Si aprueba → status `done` y sigues con la primera feature `pending`
-   (Caso A, B o C). Si pide cambios → ajustas y repites el paso 4.
+5. Si aprueba → status `done` y sigues con el siguiente trabajo: la primera
+   feature `pending` (Caso C), o si no hay ninguna, el primer bullet de
+   `## Pendientes SDD` (Caso A). Si pide cambios → ajustas y repites el paso 4.
 
 ### Caso G — status == `in_progress`
 
@@ -256,7 +284,7 @@ Sesión interrumpida de una ejecución anterior.
 Cuando lances subagentes, instrúyeles para que **escriban sus resultados
 en archivos** (no en su respuesta de texto). Tú solo recibes referencias
 del tipo: "resultado en `progress/impl_<name>.md`" o
-"`spec_ready -> specs/<name>/`".
+"`spec_drafted -> specs/<name>/`".
 
 > **En este repo en práctica:** tras una sesión real los informes quedan en
 > `progress/impl_<feature>.md` (implementer) y

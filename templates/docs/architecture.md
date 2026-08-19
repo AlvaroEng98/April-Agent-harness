@@ -1,33 +1,16 @@
-# Architecture — __YOUR_PROJECT_NAME__
+# Arquitectura — Qué significa "hacer un buen trabajo"
 
-> Define qué significa "hacer un buen trabajo" en este proyecto.
-> Rellena este documento con la arquitectura real de tu proyecto.
+> Este documento define el estándar de calidad. Los agentes revisores
+> evalúan código contra este archivo. Si no está aquí, no es un requisito.
 
-## Principles
+## Principios
 
-1. **Separación de responsabilidades** — Cada módulo hace una cosa bien.
-2. **Testabilidad** — Todo código crítico debe ser testeable aisladamente.
-3. **Simplicidad** — Preferir soluciones simples sobre soluciones clever.
-4. **Consistencia** — Seguir convenciones existentes del proyecto.
+1. Que cada función ejecute una sola cosa.
+    - Reducir un gran problema en pequeñas partes, aplicando el principio divide y vencerás.
 
-## Layer Structure
+2. Aplicar siempre la metodología de trabajo definida en las fases iniciales, separando todo por módulos, cada uno con sus apartados correspondientes.
+    *(La fase Grill rellena aquí un ejemplo concreto del stack y patrón de este proyecto.)*
 
-<!-- Describe las capas/módulos de tu proyecto y cómo se relacionan. -->
+3. Siempre tener una sección para verificar las variables de entorno. Nunca asignar valores por defecto a una variable de entorno: si falta, el sistema debe fallar explícitamente al arrancar, no seguir con un valor supuesto.
 
-## Dependency Rules
-
-<!-- Qué puede depender de qué. Reglas de dirección de dependencias. -->
-
-## Module Map
-
-| Módulo | Archivo | Responsabilidad |
-|--------|---------|-----------------|
-|        |         |                 |
-
-## Data Flow
-
-<!-- Cómo fluyen los datos a través del sistema. -->
-
-## Error Handling
-
-<!-- Estrategia de manejo de errores del proyecto. -->
+4. Revisar siempre que no se inserten datos comprometedores directamente en el código; siempre cargarlos desde el fichero correspondiente (`.env`, secrets manager, etc.).

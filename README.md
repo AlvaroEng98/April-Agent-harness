@@ -140,21 +140,22 @@ poblar el backlog.
 ## El flujo
 
 ```
-[FASE Grill: el orquestador entrevista]  ← solo si bootstrap_project no está done
+[FASE Grill: planner_agent entrevista, el orquestador es relay]  ← solo si bootstrap_project no está done
        │
        ▼  progress/project-definition.md
 [planner_agent]  ← descompone en features
        │
        ▼
-pending → [sdd_agent_author] → spec_ready → ⏸ APROBACIÓN HUMANA
-       → in_progress → [agent_developer → reviewer_agent] → done
+(sin fila) → [sdd_agent_author escribe spec.md] → [planner_agent crea la fila]
+           → spec_ready → ⏸ APROBACIÓN HUMANA
+           → in_progress → [agent_developer → reviewer_agent] → done
 ```
 
 Dos puertas que el agente no puede saltar: la **aprobación humana del spec**
 antes de escribir código, y la **aprobación humana del review** antes de marcar
-`done`. Las features con `"sdd": true` requieren los tres documentos
-(`requirements.md`, `design.md`, `tasks.md`) antes de que exista una línea de
-código.
+`done`. Las features con `"sdd": true` requieren `specs/<name>/spec.md`
+(plantilla `to-spec`: Historias de usuario, Decisiones de implementación/testing,
+`## Desafío`) antes de que exista una línea de código.
 
 Detalle completo en `.claude/agents/orquestador.md` del proyecto generado y en
 `docs/specs.md` de este repositorio.

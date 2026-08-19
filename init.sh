@@ -20,12 +20,11 @@ EXIT_CODE=0
 
 echo "── 1. Verificando archivos base del arnés ──────────────"
 
-# feature_list.json y config.json son estado de desarrollo y NO están
-# versionados (ver .gitignore), así que en un clone limpio no existen. Se
-# siembran desde el template para que el arnés pueda arrancar sobre sí
-# mismo. En un proyecto ya scaffoldeado no hay templates/, así que ahí sí es
-# un error real.
-for seed in feature_list.json config.json; do
+# feature_list.json es estado de desarrollo y NO está versionado (ver
+# .gitignore), así que en un clone limpio no existe. Se siembra desde el
+# template para que el arnés pueda arrancar sobre sí mismo. En un proyecto
+# ya scaffoldeado no hay templates/, así que ahí sí es un error real.
+for seed in feature_list.json; do
   if [ ! -f "$seed" ]; then
     if [ -f "templates/$seed" ]; then
       cp "templates/$seed" "$seed"
@@ -41,7 +40,6 @@ done
 BASE_FILES=(
   "AGENT.md"
   "feature_list.json"
-  "config.json"
   "progress/current.md"
   "docs/architecture.md"
   "docs/conventions.md"
@@ -78,12 +76,12 @@ try:
             sys.exit(1)
         if f.get("sdd") and f["status"] in requires_spec:
             spec_dir = os.path.join("specs", f["name"])
-            for fname in ("requirements.md", "design.md", "tasks.md"):
-                if not os.path.isfile(os.path.join(spec_dir, fname)):
-                    spec_errors.append(
-                        f"feature {f['id']} ({f['name']}) en {f['status']} "
-                        f"sin {spec_dir}/{fname}"
-                    )
+            spec_file = os.path.join(spec_dir, "spec.md")
+            if not os.path.isfile(spec_file):
+                spec_errors.append(
+                    f"feature {f['id']} ({f['name']}) en {f['status']} "
+                    f"sin {spec_file}"
+                )
     if spec_errors:
         for e in spec_errors:
             print(f"[FAIL]  {e}")
@@ -126,25 +124,7 @@ else
 fi
 
 echo ""
-echo "── 4. Verificando compilación Go ───────────────────────"
-
-if [ -f "go.mod" ]; then
-  if command -v go &>/dev/null; then
-    if go build -o /dev/null . 2>/dev/null; then
-      ok "Código Go compila correctamente"
-    else
-      fail "Error al compilar código Go"
-      EXIT_CODE=1
-    fi
-  else
-    warn "Go no está instalado — saltando verificación de compilación"
-  fi
-else
-  warn "No se encontró go.mod — proyecto no es Go"
-fi
-
-echo ""
-echo "── 5. Resumen ──────────────────────────────────────────"
+echo "── 4. Resumen ──────────────────────────────────────────"
 
 if [ $EXIT_CODE -eq 0 ]; then
   ok "Entorno listo. Puedes empezar a trabajar."

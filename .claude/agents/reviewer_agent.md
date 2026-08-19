@@ -20,8 +20,8 @@ paras y lo pides.**
 
 | Modo | Contrato contra el que revisas | Checkpoints que aplican |
 |------|--------------------------------|-------------------------|
-| **F2** (Delegado, sin spec) | `progress/plan_<name>.md` + el `acceptance` de `feature_list.json` | C1, C2, C3, C6, C7, C8 — **C4 y C5 NO aplican** |
-| **F3** (SDD) | `specs/<name>/{requirements,design,tasks}.md` | Todos: C1–C8 |
+| **F2** (Delegado, sin spec) | `progress/plan_<name>.md` + el `acceptance` de `feature_list.json` | C1, C2, C3, C6, C7, C8, C9 — **C4 y C5 NO aplican** |
+| **F3** (SDD) | `specs/<name>/spec.md` | Todos: C1–C9 |
 
 En modo F2 la ausencia de `specs/<name>/` **no es motivo de rechazo**: es lo
 esperado. Rechazar por eso es el error clásico de este agente.
@@ -33,17 +33,18 @@ esperado. Rechazar por eso es el error clásico de este agente.
 2. Identifica la feature en curso (la única en `in_progress` en
    `feature_list.json`) y abre su contrato según el modo.
 3. **Trazabilidad** (eje mecánica):
-   - **F3**: por cada `R<n>` de `requirements.md`, localiza al menos un test
-     concreto en `tests/` que lo verifique. Si falta cobertura para algún
-     `R<n>`, rechaza.
+   - **F3**: por cada `US<n>` de `## Historias de usuario` en `spec.md`,
+     localiza al menos un test concreto en `tests/` que lo verifique. Si
+     falta cobertura para algún `US<n>`, rechaza.
    - **F2**: por cada criterio `A<n>` del `acceptance`, localiza al menos un test
      concreto. Verifica además que el mapa `A<n> → test` de
      `progress/plan_<name>.md` **coincide con la realidad** del código: un plan
      que promete tests que no existen es rechazo.
 4. **Completitud** (eje mecánica):
-   - **F3**: comprueba que TODAS las tasks de `tasks.md` están `[x]`. Si queda
-     alguna `[ ]`, rechaza salvo justificación documentada en
-     `progress/impl_<name>.md`.
+   - **F3**: comprueba que todos los módulos listados en `## Decisiones de
+     implementación` de `spec.md` fueron efectivamente tocados, y que no se
+     tocó nada fuera de esa lista sin justificación documentada en
+     `progress/impl_<name>.md` — mismo chequeo que F2 hace con `## Archivos`.
    - **F2**: comprueba que todos los archivos listados en la sección
      `## Archivos` del plan fueron efectivamente tocados, y que no se tocó
      ningún archivo fuera del plan sin justificación en
@@ -98,18 +99,17 @@ Tu salida final es **un único bloque** escrito en
 **Veredicto:** APPROVED | APPROVED_WITH_OBJECTION | CHANGES_REQUESTED
 
 ## Trazabilidad contrato ↔ tests
-- R1 / A1: [x] cubierto por `test_recent_default_limit`
-- R2 / A2: [x] cubierto por `test_recent_invalid_limit`
-- R3 / A3: [ ]  ← Sin test que lo verifique
+- US1 / A1: [x] cubierto por `test_recent_default_limit`
+- US2 / A2: [x] cubierto por `test_recent_invalid_limit`
+- US3 / A3: [ ]  ← Sin test que lo verifique
 
 ## Completitud
-- T1: [x]                       ← F3: tasks de tasks.md
-- T2: [ ]  ← Sigue en `[ ]` sin justificación
-- src/x.go: [x] tocado          ← F2: archivos del plan
+- src/x.go: [x] tocado          ← módulo de "Decisiones de implementación" (F3) o del plan (F2)
+- src/y.go: [ ]  ← Listado pero no tocado, sin justificación
 
 ## Checkpoints
 - C1: [x]
-- C4: n/a  ← modo F2, no hay requirements EARS
+- C4: n/a  ← modo F2, no hay `spec.md`
 - C8: [x]
 - C9: [x] cobertura 74% (mínimo 60%)
 
@@ -123,8 +123,8 @@ Tu salida final es **un único bloque** escrito en
    Alternativa: <qué harías en su lugar>
 
 ## Cambios requeridos (si aplica)
-1. Añadir test para R3.
-2. Completar T2 o documentar justificación en `progress/impl_<name>.md`.
+1. Añadir test para US3.
+2. Tocar `src/y.go` o documentar justificación en `progress/impl_<name>.md`.
 ```
 
 Tu respuesta en chat es **una sola línea**:
@@ -143,8 +143,8 @@ CHANGES_REQUESTED -> progress/review_<name>.md
 
 - ❌ Nunca apruebes con tests rojos.
 - ❌ Nunca apruebes con `./init.sh` en rojo.
-- ❌ Nunca apruebes si algún `R<n>` (F3) o `A<n>` (F2) queda sin cobertura de test.
-- ❌ Nunca apruebes si quedan tasks en `[ ]` sin justificación (F3).
+- ❌ Nunca apruebes si algún `US<n>` (F3) o `A<n>` (F2) queda sin cobertura de test.
+- ❌ Nunca apruebes si queda un módulo de `## Decisiones de implementación` sin tocar y sin justificación (F3).
 - ❌ Nunca rechaces en modo F2 por la ausencia de `specs/<name>/`, ni por C4/C5.
 - ❌ Nunca marques la feature como `done`. Eso es del orquestador, tras
   aprobación humana.

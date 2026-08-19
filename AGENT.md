@@ -19,14 +19,15 @@
 | `feature_list.json`          | Lista de tareas con estado                                                  | Siempre, al empezar |
 | `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
 | `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
-| `specs/<feature>/`           | `requirements.md` + `design.md` + `tasks.md` (Kiro-style)                   | Antes de implementar cualquier feature con `"sdd": true` (flujo F3) |
+| `specs/<feature>/`           | `spec.md` — plantilla `to-spec` (Historias de usuario, Decisiones de implementación/testing, `## Desafío`) | Antes de implementar cualquier feature con `"sdd": true` (flujo F3) |
 | `progress/plan_<feature>.md` | Contrato ligero del flujo F2: archivos + mapa `acceptance → test` + riesgo asumido | Antes de implementar (F2) y antes de revisar (F2) |
 | `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto                      | Antes de implementar |
 | `docs/adr/`                  | Decisiones arquitectónicas difíciles de revertir, con su porqué (skill `domain-modeling`) | Antes de deshacer o contradecir una decisión pasada |
 | `docs/conventions.md`        | Reglas de estilo, nombres, estructura                                       | Antes de escribir código |
-| `docs/specs.md`              | Proceso SDD: EARS notation, los 3 archivos, puerta de aprobación humana     | Antes de redactar o leer un spec |
+| `docs/specs.md`              | Proceso SDD: plantilla `to-spec` de `spec.md`, puertas de aprobación humana | Antes de redactar o leer un spec |
 | `docs/verification.md`       | Cómo verificar que tu trabajo funciona (incluye trazabilidad requirements)  | Antes de declarar una tarea como `done` |
 | `docs/puerta-de-desafio.md`  | Gatillos G1-G4 y formato de objeción, compartidos por los agentes que pueden objetar | Antes de objetar algo |
+| `docs/skills-adoptadas.md`   | Qué skills del catálogo externo se adoptaron y por qué                      | Antes de evaluar instalar una skill nueva |
 | `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"                              | Para auto-evaluarte |
 | `.claude/agents/`            | Definiciones de subagentes                                                  | Si orquestas trabajo |
 
