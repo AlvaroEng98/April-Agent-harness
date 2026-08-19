@@ -9,9 +9,11 @@
 | **F2 Delegado** | `progress/plan_<feature>.md` | `agent_developer`, antes de codear | 1 (cierre) |
 | **F3 SDD** | `specs/<feature>/{requirements,design,tasks}.md` | `sdd_agent_author`, antes de codear | 2 (spec + cierre) |
 
-Los dos flujos y la Puerta de Desafío están definidos en
-`.claude/agents/orquestador.md` — es la fuente única, no se resumen en ningún
-otro archivo.
+Los tres flujos de entrada (Directo/Planificación/SDD) están definidos en la
+skill `design-flow`; su ejecución (F2/F3) en `.claude/agents/orquestador.md`.
+La Puerta de Desafío (gatillos, formato de objeción) vive en
+`docs/puerta-de-desafio.md`. Cada uno es fuente única de lo suyo — no se
+resumen en ningún otro archivo.
 
 ---
 

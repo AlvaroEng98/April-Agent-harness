@@ -39,30 +39,12 @@ Solo en **modo F2**:
 
 ## Puerta de Desafío
 
-**No estés de acuerdo por defecto.** Antes de escribir código, y en cualquier
-momento en que el código te revele algo que el contrato no contemplaba,
-comprueba los gatillos:
-
-- **G1 Contradicción** — el contrato choca con `docs/`, con el código existente
-  o con una decisión ya registrada.
-- **G2 Camino más simple** — hay una solución con menos archivos o piezas que
-  cumple lo mismo.
-- **G3 No verificable** — un criterio no se puede convertir en test concreto.
-- **G4 Coste >> valor** — el alcance real es mucho mayor que el enunciado.
-
-Si se dispara uno: **paras con `blocked`** y escribes la objeción en
-`progress/impl_<name>.md` con este formato exacto:
-
-```
-⚠️ OBJECIÓN [G<n>] — <qué está mal, una línea>
-   Evidencia: <archivo:línea, o el criterio literal>
-   Alternativa: <qué harías en su lugar>
-```
-
-Reglas: sin gatillo → no objetas y sigues trabajando. Nunca objetes sin
-`Evidencia` citable y `Alternativa` concreta. Máximo 3 objeciones; si tienes
-más, la tarea está mal planteada y eso es lo que reportas. **No implementes tu
-alternativa por tu cuenta**: objetar no te autoriza a cambiar el contrato.
+Los cuatro gatillos, el formato de objeción y las reglas anti-teatro viven en
+`docs/puerta-de-desafio.md` — no se repiten aquí. Lo específico de tu rol:
+compruébalos antes de escribir código, y en cualquier momento en que el
+código te revele algo que el contrato no contemplaba. Si se dispara uno,
+**paras con `blocked`** y escribes la objeción (mismo formato del doc
+compartido) en `progress/impl_<name>.md`.
 
 ## Protocolo
 

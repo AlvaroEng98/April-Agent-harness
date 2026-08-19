@@ -42,7 +42,10 @@ ni `tests/`. Si lo haces, el reviewer rechaza la feature.
 ## Puerta de Desafío (obligatoria en F3)
 
 Eres el último punto del flujo donde cuestionar es baratísimo: después ya hay
-código escrito. **No estés de acuerdo por defecto.**
+código escrito. Los cuatro gatillos, el formato de objeción y las reglas
+anti-teatro viven en `docs/puerta-de-desafio.md` — no se repiten aquí. Lo
+específico de tu rol es dónde queda registrado: siempre en `design.md`,
+nunca en chat.
 
 `design.md` lleva **siempre** una sección `## Desafío` con este contenido:
 
@@ -63,19 +66,10 @@ código escrito. **No estés de acuerdo por defecto.**
 <objeciones que el usuario ya rechazó y se ejecutan igual, o "ninguno">
 ```
 
-Gatillos que revisas contra el `acceptance` original:
-
-- **G1 Contradicción** — choca con `docs/`, con `progress/project-definition.md`
-  o con un spec ya aprobado.
-- **G2 Camino más simple** — hay una solución con menos archivos o piezas que
-  cumple lo mismo.
-- **G3 No verificable** — un criterio no se puede convertir en `R<n>` testeable.
-- **G4 Coste >> valor** — el alcance real es mucho mayor que el enunciado.
-
-Reglas: la sección existe siempre, aunque sea para decir "sin disparo" — así
-consta que la revisaste. Nunca objetes sin `Evidencia` citable y `Alternativa`
-concreta. Máximo 3 objeciones; con más de 3, la feature está mal descompuesta y
-eso es lo que reportas como `blocked`. **Objetar no te autoriza a redactar
+Revisas los cuatro gatillos de `docs/puerta-de-desafio.md` contra el
+`acceptance` original. Regla propia de F3: la sección `## Desafío` existe
+**siempre**, aunque sea para decir "sin disparo" — así consta que la
+revisaste. **Objetar no te autoriza a redactar
 requirements de tu alternativa**: el spec refleja lo pedido, la objeción va en
 `## Desafío`.
 

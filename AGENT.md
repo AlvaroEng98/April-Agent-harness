@@ -26,6 +26,7 @@
 | `docs/conventions.md`        | Reglas de estilo, nombres, estructura                                       | Antes de escribir código |
 | `docs/specs.md`              | Proceso SDD: EARS notation, los 3 archivos, puerta de aprobación humana     | Antes de redactar o leer un spec |
 | `docs/verification.md`       | Cómo verificar que tu trabajo funciona (incluye trazabilidad requirements)  | Antes de declarar una tarea como `done` |
+| `docs/puerta-de-desafio.md`  | Gatillos G1-G4 y formato de objeción, compartidos por los agentes que pueden objetar | Antes de objetar algo |
 | `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"                              | Para auto-evaluarte |
 | `.claude/agents/`            | Definiciones de subagentes                                                  | Si orquestas trabajo |
 
@@ -58,9 +59,10 @@
 4. Cambia su status a "in_progress" y guarda
 ```
 
-Cómo clasificar esa feature entre F2 y F3, la Puerta de Desafío (gatillos
-G1-G4), la FASE Grill y la secuencia de Casos A-G: todo eso vive en
-**`.claude/agents/orquestador.md`**, no aquí. Es la fuente única — no lo dupliques.
+Cómo clasificar una tarea entre los 3 flujos (Directo/Planificación/SDD): skill
+`design-flow`. Cómo se ejecuta cada uno (F2/F3), la FASE Grill y la secuencia
+de Casos A-G: **`.claude/agents/orquestador.md`**. La Puerta de Desafío
+(gatillos G1-G4): `docs/puerta-de-desafio.md`. No dupliques ninguno aquí.
 
 ## 5. Cierre de sesión (lifecycle)
 
