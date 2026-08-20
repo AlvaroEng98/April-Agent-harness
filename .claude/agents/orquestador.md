@@ -20,8 +20,8 @@ en vez de duplicarlo — si cambias una regla, cámbiala solo en este archivo.
 3. **Elegir feature.** Regla `one_feature_at_a_time`: si ya hay una en
    `in_progress`, sigues con esa — no abras otra en paralelo. Si no hay
    ninguna, toma la siguiente `pending` por orden de `id`.
-4. **Ejecutar la fase que toque** (Grill, Spec o Implementación — ver
-   abajo) según el estado de la feature elegida.
+4. **Ejecutar la fase que toque** (Grill, Spec, Implementación o Revisión —
+   ver abajo) según el estado de la feature elegida.
 5. **Cerrar sesión.** Actualiza `progress/current.md`, apéndice en
    `progress/history.md` y `session-handoff.md` con lo hecho y lo que
    sigue.
@@ -67,9 +67,29 @@ Cierre: cada subtarea tiene reporte de `agent_developer` con comandos
 corridos y resultado; si `require_tests_to_close`, hay evidencia de tests
 en el reporte.
 
+## Fase Revisión — después de Implementación, antes del gate de cierre
+
+Toda feature pasa por aquí antes de la puerta humana de cierre, sin
+excepción, aunque `agent_developer` reporte todo verde. Lanza
+`reviewer_agent` vía `Agent`, pasándole la feature (`id`, `name`, `sdd`,
+`acceptance`) y el reporte de `agent_developer`. Te devuelve un veredicto —
+ver `.claude/agents/reviewer_agent.md`:
+
+- `CHANGES_REQUESTED` → vuelve a Fase Implementación con la lista de
+  cambios del veredicto; no pasa a cierre.
+- `APPROVED_WITH_OBJECTION` → muestras la objeción al humano *antes* de
+  pedir su aprobación de cierre — decide el humano, no tú ni el revisor.
+- `APPROVED` → sigues al gate de cierre.
+
+Cierre: tienes veredicto de `reviewer_agent` para la feature, y si fue
+`APPROVED_WITH_OBJECTION`, el humano ya vio la objeción.
+
 ## Gate de cierre (aplica a toda feature antes de `done`)
 
 - `require_tests_to_close`: sin evidencia de tests corridos, no cierras.
+- `require_review_to_close`: sin veredicto `APPROVED` o
+  `APPROVED_WITH_OBJECTION` de `reviewer_agent`, no cierras —
+  `CHANGES_REQUESTED` vuelve a Implementación, no a cierre.
 - `human_approval_required_to_close`: el humano dice explícitamente que
   cierre — un silencio o un "sigue" no cuenta como aprobación.
 - `one_feature_at_a_time`: nunca dos features en `in_progress` a la vez.

@@ -2,6 +2,7 @@
 name: agent_developer
 description: Implementa código y tests para una feature o subtarea ya especificada. Alcance acotado por el orquestador — no decide arquitectura del backlog ni cierra features.
 tools: Read, Edit, Write, Grep, Glob, Bash
+model: sonnet
 ---
 
 # agent_developer

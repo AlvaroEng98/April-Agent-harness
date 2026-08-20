@@ -4,7 +4,7 @@ Este archivo es el punto de entrada para cualquier agente que trabaje en
 este repositorio. NO es una biblia de reglas: es un mapa. Lee solo lo que
 necesites cuando lo necesites (divulgación progresiva).
 
-## Los 4 agentes y su orden
+## Los 5 agentes y su orden
 
 1. **orquestador** (`.claude/agents/orquestador.md`) — coordina el ciclo
    completo y es el único que escribe `feature_list.json`, `progress/` y
@@ -18,18 +18,22 @@ necesites cuando lo necesites (divulgación progresiva).
 4. **agent_developer** (`.claude/agents/agent_developer.md`) — el único
    que toca `src/` y tests; implementa una feature (o subtarea) ya
    spec-eada o con `acceptance` claro.
+5. **reviewer_agent** (`.claude/agents/reviewer_agent.md`) — tras la
+   Implementación, demuestra que los tests cubren camino feliz y camino
+   de error de cada criterio/historia, y emite el veredicto que condiciona
+   el gate de cierre.
 
-El orquestador lanza a los otros tres vía la herramienta `Agent`, en ese
-orden según la fase. Ninguno de los tres se lanza a sí mismo ni a otro.
+El orquestador lanza a los otros cuatro vía la herramienta `Agent`, en ese
+orden según la fase. Ninguno de los cuatro se lanza a sí mismo ni a otro.
 
-## Invariante entre los cuatro
+## Invariante entre los cinco
 
 Estado del proyecto (`feature_list.json`, `progress/*`,
 `session-handoff.md`) lo escribe **solo** el orquestador. `planner_agent`,
-`spec_writer` y `agent_developer` siempre devuelven su resultado — lista
-propuesta, spec, reporte —, nunca lo escriben ellos ni marcan status. Si
-alguno de los tres toca esos archivos, es un bug del protocolo, no un
-atajo válido.
+`spec_writer`, `agent_developer` y `reviewer_agent` siempre devuelven su
+resultado — lista propuesta, spec, reporte, veredicto —, nunca lo escriben
+ellos ni marcan status. Si alguno de los cuatro toca esos archivos, es un
+bug del protocolo, no un atajo válido.
 
 ## Dónde está cada regla
 

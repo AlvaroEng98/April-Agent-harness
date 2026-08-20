@@ -18,9 +18,12 @@
 
 - [ ] Se cumplen las `rules` de `feature_list.json` (`one_feature_at_a_time`,
       `require_approved_spec_to_implement`, `require_tests_to_close`,
-      `human_approval_required_to_close`).
+      `require_review_to_close`, `human_approval_required_to_close`).
 - [ ] Toda feature `done` tiene evidencia de tests corridos, visible en el
       reporte de `agent_developer` que quedó en `progress/history.md`.
+- [ ] Toda feature `done` tiene veredicto `APPROVED` o
+      `APPROVED_WITH_OBJECTION` de `reviewer_agent` — nunca
+      `CHANGES_REQUESTED` sin resolver.
 - [ ] `progress/current.md` describe la feature activa o dice
       explícitamente que no hay ninguna — nada de sesiones anteriores sin
       limpiar.

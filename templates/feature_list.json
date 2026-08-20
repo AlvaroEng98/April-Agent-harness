@@ -3,6 +3,7 @@
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
     "require_approved_spec_to_implement": true,
+    "require_review_to_close": true,
     "valid_status": [
       "pending",
       "spec_ready",
