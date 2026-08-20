@@ -22,11 +22,6 @@ pasa por `agent_developer`.
 **Antes de tu primera acción de la sesión, lee `.claude/agents/orquestador.md`
 completo.**
 
-### Protocolo de arranque (al recibir cada tarea)
-
-Sigue `AGENT.md` §1 tal cual (orden incluido). No lo repitas ni reordenes aquí.
-
-
 ## Cuándo NO aplica este rol
 
 - Preguntas conceptuales o de exploración del repo (lectura pura) → responde

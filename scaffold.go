@@ -115,7 +115,7 @@ func planScaffold(absTarget string) (scaffoldPlan, error) {
 		}
 		mode := fs.FileMode(0644)
 		switch d.Name() {
-		case "init.sh", "recap.sh":
+		case "init.sh":
 			mode = 0755
 		}
 		fw := scaffoldFileWrite{

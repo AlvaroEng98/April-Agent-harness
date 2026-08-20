@@ -1,82 +1,41 @@
-# AGENT.md — Mapa de navegación para agentes de IA
+# AGENTS.md — Mapa de navegación para agentes de IA
 
-> Este archivo es el **punto de entrada** para cualquier agente que trabaje en este
-> repositorio. NO es una biblia de reglas: es un **mapa**. Lee solo lo que
-> necesites cuando lo necesites (divulgación progresiva).
+Este archivo es el punto de entrada para cualquier agente que trabaje en
+este repositorio. NO es una biblia de reglas: es un mapa. Lee solo lo que
+necesites cuando lo necesites (divulgación progresiva).
 
----
+## Los 4 agentes y su orden
 
-## 1. Antes de empezar (obligatorio)
+1. **orquestador** (`.claude/agents/orquestador.md`) — coordina el ciclo
+   completo y es el único que escribe `feature_list.json`, `progress/` y
+   `session-handoff.md`. Nunca toca código. Fuente única del protocolo
+   completo: si buscas "qué hago en tal fase", está ahí, no aquí.
+2. **planner_agent** (`.claude/agents/planner_agent.md`) — descompone un
+   objetivo en features atómicas y decide `acceptance` y `sdd` por
+   feature.
+3. **spec_writer** (`.claude/agents/spec_writer.md`) — redacta
+   `specs/<name>/spec.md` para las features con `sdd: true`.
+4. **agent_developer** (`.claude/agents/agent_developer.md`) — el único
+   que toca `src/` y tests; implementa una feature (o subtarea) ya
+   spec-eada o con `acceptance` claro.
 
-1. Ejecuta `./init.sh` primero, antes de cualquier otro paso. Si falla, **no
-   continúes**: no se puede avanzar con el entorno roto. Resuelve el fallo
-   antes de leer nada más o tocar código.
+El orquestador lanza a los otros tres vía la herramienta `Agent`, en ese
+orden según la fase. Ninguno de los tres se lanza a sí mismo ni a otro.
 
-## 2. Mapa del repositorio
+## Invariante entre los cuatro
 
-| Archivo / carpeta            | Qué contiene                                                                | Cuándo leerlo |
-|------------------------------|-----------------------------------------------------------------------------|---------------|
-| `feature_list.json`          | Lista de tareas con estado                                                  | Siempre, al empezar |
-| `progress/current.md`        | Estado de la sesión actual                                                  | Siempre, al empezar |
-| `progress/history.md`        | Bitácora append-only de sesiones anteriores                                 | Si necesitas contexto histórico |
-| `specs/<feature>/`           | `spec.md` — plantilla `to-spec` (Historias de usuario, Decisiones de implementación/testing, `## Desafío`) | Antes de implementar cualquier feature con `"sdd": true` (flujo F3) |
-| `progress/plan_<feature>.md` | Contrato ligero del flujo F2: archivos + mapa `acceptance → test` + riesgo asumido | Antes de implementar (F2) y antes de revisar (F2) |
-| `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto                      | Antes de implementar |
-| `docs/adr/`                  | Decisiones arquitectónicas difíciles de revertir, con su porqué (skill `domain-modeling`) | Antes de deshacer o contradecir una decisión pasada |
-| `docs/conventions.md`        | Reglas de estilo, nombres, estructura                                       | Antes de escribir código |
-| `docs/specs.md`              | Proceso SDD: plantilla `to-spec` de `spec.md`, puertas de aprobación humana | Antes de redactar o leer un spec |
-| `docs/verification.md`       | Cómo verificar que tu trabajo funciona (incluye trazabilidad requirements)  | Antes de declarar una tarea como `done` |
-| `docs/puerta-de-desafio.md`  | Gatillos G1-G4 y formato de objeción, compartidos por los agentes que pueden objetar | Antes de objetar algo |
-| `docs/skills-adoptadas.md`   | Qué skills del catálogo externo se adoptaron y por qué                      | Antes de evaluar instalar una skill nueva |
-| `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"                              | Para auto-evaluarte |
-| `.claude/agents/`            | Definiciones de subagentes                                                  | Si orquestas trabajo |
+Estado del proyecto (`feature_list.json`, `progress/*`,
+`session-handoff.md`) lo escribe **solo** el orquestador. `planner_agent`,
+`spec_writer` y `agent_developer` siempre devuelven su resultado — lista
+propuesta, spec, reporte —, nunca lo escriben ellos ni marcan status. Si
+alguno de los tres toca esos archivos, es un bug del protocolo, no un
+atajo válido.
 
-## 3. Reglas duras (no negociables)
+## Dónde está cada regla
 
-- **Una sola feature a la vez.** No mezcles cambios de varias tareas en la misma sesión.
-- **No salgas del proyecto actual.** Solo te mueves dentro de sus carpetas y
-  subcarpetas.
-- **No declares una tarea `done` sin pruebas verdes.** Ejecuta `./init.sh` y
-  asegúrate de que el bloque de tests pasa al 100%.
-- **No saltes la puerta de aprobación humana.** Existe en los dos flujos: el
-  orquestador para antes de escribir `done`, siempre. En F3 hay dos puertas
-  (spec y cierre).
-- **No estés de acuerdo por defecto.** Siempre que exista una ambigüedad y que
-  algo no esté claro cuestiona las decisiones del usuario.
-- **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
-- **Si no sabes algo, busca en `docs/`**, nunca inventes; si te falta algo,
-  pregunta al usuario.
-- **Toda decisión difícil de revertir, sorprendente sin contexto y fruto de un
-  trade-off real** se registra en `docs/adr/` (skill `domain-modeling`), no
-  solo en `docs/architecture.md` — así no vuelve a quedar desactualizado en
-  silencio.
-
-## 4. Cómo elegir una tarea
-
-```
-1. Abre feature_list.json
-2. Filtra por status == "pending"
-3. Coge la de menor "id"
-4. Cambia su status a "in_progress" y guarda
-```
-
-Cómo clasificar una tarea entre los 3 flujos (Directo/Planificación/SDD): skill
-`design-flow`. Cómo se ejecuta cada uno (F2/F3), la FASE Grill y la secuencia
-de Casos A-G: **`.claude/agents/orquestador.md`**. La Puerta de Desafío
-(gatillos G1-G4): `docs/puerta-de-desafio.md`. No dupliques ninguno aquí.
-
-## 5. Cierre de sesión (lifecycle)
-
-Antes de terminar:
-
-1. Ejecuta `./init.sh` — todo verde.
-2. Si la tarea está acabada: marca `status: "done"` en `feature_list.json`.
-3. Mueve el resumen de `progress/current.md` al final de `progress/history.md`.
-4. Vacía `progress/current.md` dejando solo la plantilla.
-5. No dejes archivos temporales, ni `print()` de debug, ni TODOs sin contexto.
-
-## 6. Si te bloqueas
-
-- Relee la sección relevante de `docs/`.
-- Si la herramienta no hace lo que esperas, **no inventes un workaround**:
-  documenta el bloqueo en `progress/current.md` y para la sesión.
+- Ciclo completo, fases, gates de cierre → `.claude/agents/orquestador.md`
+- Reglas de estado (`valid_status`, `sdd_required_when`, gates) →
+  `feature_list.json` → `rules`
+- Convenciones de código y arquitectura → `docs/conventions.md`,
+  `docs/architecture.md`
+- Cómo verificar que el entorno está listo → `./init.sh`

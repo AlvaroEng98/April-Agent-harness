@@ -1,35 +1,49 @@
-# CHECKPOINTS
+# CHECKPOINTS — Evaluación del estado final
 
-Criterios objetivos usados por el `reviewer_agent` para evaluar una feature.
+> En sistemas multi-agente no se evalúa el camino, se evalúa el destino.
+> El orquestador recorre esta lista antes de cerrar una sesión (paso
+> "Cerrar sesión" en `.claude/agents/orquestador.md`) y marca cada casilla
+> `[x]`/`[ ]`. Si queda una casilla vacía en C1-C5, la sesión no cierra.
 
-La columna **Flujo** dice en qué flujos aplica el checkpoint. Un checkpoint que
-no aplica se marca `n/a`, no `[ ]`: en F2 no hay spec, así que exigir
-trazabilidad `US<n>` o cobertura de `spec.md` sería rechazar por algo que
-nunca debió existir.
+## C1 — El arnés está completo
 
-| ID | Criterio | Flujo |
-|----|----------|-------|
-| C1 | Código compila/interpreta sin errores | F2 · F3 |
-| C2 | `init.sh` pasa verde | F2 · F3 |
-| C3 | Todos los tests pasan | F2 · F3 |
-| C4 | Trazabilidad `US<n>` (Historias de usuario de `spec.md`) ↔ tests completa | **solo F3** |
-| C5 | Todos los módulos de `## Decisiones de implementación` de `spec.md` fueron tocados | **solo F3** |
-| C6 | Sin TODOs, debug prints, ni código comentado | F2 · F3 |
-| C7 | La feature respeta `docs/architecture.md` y `docs/conventions.md` | F2 · F3 |
-| C8 | Trazabilidad `A<n>` ↔ tests completa, y el mapa de `progress/plan_<name>.md` coincide con el código real | **solo F2** |
-| C9 | Cobertura cumple el mínimo de `docs/verification.md` (60% código nuevo, 80%+ funciones críticas) | F2 · F3 |
+- [ ] Existen `AGENTS.md`, `init.sh`, `feature_list.json`,
+      `progress/current.md`.
+- [ ] Existen `docs/architecture.md`, `docs/conventions.md` y
+      `docs/verification.md`, sin secciones `_pendiente_` donde el humano
+      ya respondió.
+- [ ] `./init.sh` termina con exit code 0.
 
-## Eje sustancia (no es un checkpoint, es un juicio)
+## C2 — El estado es coherente
 
-Los C1-C8 son mecánica: verificables sin criterio. Además de recorrerlos, el
-`reviewer_agent` responde por escrito tres preguntas de sustancia y puede emitir
-`APPROVED_WITH_OBJECTION` — mecánica verde, sustancia dudosa:
+- [ ] Se cumplen las `rules` de `feature_list.json` (`one_feature_at_a_time`,
+      `require_approved_spec_to_implement`, `require_tests_to_close`,
+      `human_approval_required_to_close`).
+- [ ] Toda feature `done` tiene evidencia de tests corridos, visible en el
+      reporte de `agent_developer` que quedó en `progress/history.md`.
+- [ ] `progress/current.md` describe la feature activa o dice
+      explícitamente que no hay ninguna — nada de sesiones anteriores sin
+      limpiar.
 
-1. ¿La implementación resuelve el problema real, o solo satisface el contrato al
-   pie de la letra dejando el problema en pie?
-2. ¿Hay complejidad que ningún requirement ni criterio pide?
-3. ¿Algún test verifica el mock o la propia implementación en vez del
-   comportamiento observable?
+## C3 — El código respeta la arquitectura
 
-Una objeción de sustancia **informa al humano, no bloquea**. La mecánica es lo
-único que produce `CHANGES_REQUESTED`.
+- [ ] El árbol de código solo contiene los módulos previstos en
+      `docs/architecture.md`.
+- [ ] Las dependencias externas declaradas coinciden con lo permitido en
+      `docs/conventions.md`.
+- [ ] No hay `TODO` sin feature asociada en `feature_list.json`, ni prints
+      de debug sueltos.
+
+## C4 — La verificación es real
+
+- [ ] Cada módulo de código tiene al menos un test, según el mapeo de
+      `docs/verification.md`.
+- [ ] El comando de verificación documentado en `docs/verification.md`
+      corre limpio (0 fallos) y reporta más de 0 tests.
+
+## C5 — La sesión se cerró bien
+
+- [ ] No hay archivos sin trackear fuera de `.gitignore`.
+- [ ] `progress/history.md` tiene una entrada nueva para esta sesión.
+- [ ] La feature trabajada quedó en el `status` que le corresponde en
+      `feature_list.json` — nunca `in_progress` al cerrar.

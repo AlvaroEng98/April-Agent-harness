@@ -92,4 +92,3 @@ Primera release publicada desde este repositorio. Continúa la numeración de
 la lineage anterior (`v0.2.10`), cuyo historial no está en este `main`.
 
 - Centralize Configuration (`centralize_config`)
-- Recap Automático al Iniciar Sesión (Claude + OpenCode) (`auto_recap_hook`)

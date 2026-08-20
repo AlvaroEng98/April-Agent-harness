@@ -66,7 +66,7 @@ El binario no tiene dependencias, pero el arnés que instala sí:
 
 | Requisito | Para qué |
 |-----------|----------|
-| `bash` | `init.sh`, `.claude/hooks/recap.sh` |
+| `bash` | `init.sh` |
 | `python3` | validación de `feature_list.json` y specs en `init.sh` |
 | Claude Code (o agente compatible) | lee `.claude/agents/` y `AGENT.md` |
 
@@ -116,7 +116,7 @@ poblar el backlog.
 ├── .claude/
 │   ├── agents/            5 subagentes: orquestador, planner, spec author,
 │   │                      developer, reviewer
-│   ├── hooks/             recap.sh — recap de estado, hook SessionStart
+│   ├── hooks/             block-dangerous-git.sh — bloquea git peligroso
 │   └── settings.json      permisos + registro del hook
 ├── docs/
 │   ├── architecture.md    qué significa "hacer un buen trabajo" aquí
@@ -180,9 +180,9 @@ go build -o april . && ./april init /tmp/prueba-harness   # smoke test
 - **`templates/`**: el **lienzo limpio** de esos mismos archivos, lo que se
   embebe y se copia al proyecto destino. Si quieres cambiar lo que reciben los
   usuarios, edita aquí.
-- El resto de los archivos embebidos (`.claude/` —incluido `.claude/hooks/recap.sh`—,
-  `AGENT.md`, `CLAUDE.md`, `init.sh`, …) se toman de la raíz tal cual: son
-  idénticos en este repo y en el proyecto generado.
+- El resto de los archivos embebidos (`.claude/`, `AGENT.md`, `CLAUDE.md`,
+  `init.sh`, …) se toman de la raíz tal cual: son idénticos en este repo y en
+  el proyecto generado.
 
 La lista exacta de lo que se embebe está en la directiva `go:embed` de
 `main.go`. `templates/` se embebe entero, así que un archivo nuevo ahí entra

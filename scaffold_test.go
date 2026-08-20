@@ -100,13 +100,11 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 		t.Errorf("se esperaba createTargetDir=true para un directorio inexistente al llamar os.ReadDir por primera vez")
 	}
 
-	var initSh, recapSh, featureList *scaffoldFileWrite
+	var initSh, featureList *scaffoldFileWrite
 	for i := range plan.files {
 		switch plan.files[i].relPath {
 		case "init.sh":
 			initSh = &plan.files[i]
-		case ".claude/hooks/recap.sh":
-			recapSh = &plan.files[i]
 		case "feature_list.json":
 			featureList = &plan.files[i]
 		}
@@ -116,12 +114,6 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 	}
 	if initSh.mode != 0755 {
 		t.Errorf("se esperaba modo 0755 para init.sh en el plan, se obtuvo %o", initSh.mode)
-	}
-	if recapSh == nil {
-		t.Fatalf("el plan no incluye .claude/hooks/recap.sh")
-	}
-	if recapSh.mode != 0755 {
-		t.Errorf("se esperaba modo 0755 para recap.sh en el plan, se obtuvo %o", recapSh.mode)
 	}
 	if featureList == nil {
 		t.Fatalf("el plan no incluye feature_list.json")

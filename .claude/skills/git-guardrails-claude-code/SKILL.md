@@ -23,11 +23,11 @@ When blocked, Claude sees a message telling it that it does not have authority t
 
 Ask the user: install for **this project only** (`.claude/settings.json`) or **all projects** (`~/.claude/settings.json`)?
 
-### 2. Copy the hook script
+### 2. Place the hook script
 
-The bundled script is at: [scripts/block-dangerous-git.sh](scripts/block-dangerous-git.sh)
+If `.claude/hooks/block-dangerous-git.sh` already exists in this project, reuse it — don't duplicate it under this skill.
 
-Copy it to the target location based on scope:
+Otherwise, create it at the target location based on scope:
 
 - **Project**: `.claude/hooks/block-dangerous-git.sh`
 - **Global**: `~/.claude/hooks/block-dangerous-git.sh`
