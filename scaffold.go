@@ -26,7 +26,7 @@ import (
 // scaffoldea. CHANGELOG.md tampoco tiene plantilla: el proyecto scaffoldeado
 // no arranca con changelog propio.
 //
-//go:embed .claude AGENT.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates
+//go:embed .claude AGENTS.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates
 var templateFS embed.FS
 
 // scaffoldFileWrite describe un único archivo a escribir en el destino: su
@@ -56,6 +56,21 @@ type scaffoldPlan struct {
 	emptyDirs         []string
 }
 
+// classifyExistingEntries decide, a partir de las entries ya leídas de
+// absTarget, si el destino ya es una instalación de harness existente
+// (AGENTS.md o feature_list.json presentes) y, si lo es, qué directorio de
+// agentes hay que limpiar antes de regenerarlo. Es pura (sin I/O) para poder
+// testearla con una tabla sin pasar por os.ReadDir ni por el resto de
+// planScaffold.
+func classifyExistingEntries(absTarget string, entries []fs.DirEntry) (isExistingHarness bool, agentDirToClean string) {
+	for _, e := range entries {
+		if e.Name() == "AGENTS.md" || e.Name() == "feature_list.json" {
+			return true, filepath.Join(absTarget, ".claude", "agents")
+		}
+	}
+	return false, ""
+}
+
 // planScaffold decide todo lo que hay que hacer para scaffoldear absTarget
 // sin tocar el disco (salvo lecturas): detecta si absTarget existe y si es
 // una instalación de harness existente, recorre el embed.FS para decidir qué
@@ -72,15 +87,7 @@ func planScaffold(absTarget string) (scaffoldPlan, error) {
 		}
 		plan.createTargetDir = true
 	} else {
-		for _, e := range entries {
-			if e.Name() == "AGENT.md" || e.Name() == "feature_list.json" {
-				plan.isExistingHarness = true
-				break
-			}
-		}
-		if plan.isExistingHarness {
-			plan.agentDirToClean = filepath.Join(absTarget, ".claude", "agents")
-		}
+		plan.isExistingHarness, plan.agentDirToClean = classifyExistingEntries(absTarget, entries)
 	}
 
 	err = fs.WalkDir(templateFS, ".", func(path string, d fs.DirEntry, err error) error {
@@ -206,7 +213,7 @@ func applyPlan(plan scaffoldPlan) error {
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Edit feature_list.json with your project info")
 	fmt.Println("  2. Run ./init.sh to verify the environment")
-	fmt.Println("  3. Read AGENT.md to understand the workflow")
+	fmt.Println("  3. Read AGENTS.md to understand the workflow")
 	return nil
 }
 

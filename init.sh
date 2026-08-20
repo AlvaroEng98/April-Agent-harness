@@ -38,7 +38,7 @@ for seed in feature_list.json; do
 done
 
 BASE_FILES=(
-  "AGENT.md"
+  "AGENTS.md"
   "feature_list.json"
   "progress/current.md"
   "docs/architecture.md"

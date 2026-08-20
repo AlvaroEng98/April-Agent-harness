@@ -76,6 +76,61 @@ func TestMergeGitignore(t *testing.T) {
 	})
 }
 
+// TestClassifyExistingEntries cubre main.go:classifyExistingEntries() de
+// forma aislada y tabular, sin pasar por embed.FS ni por applyPlan: las
+// entries se fabrican escribiendo archivos reales en un directorio temporal y
+// leyéndolas con os.ReadDir (más simple que fabricar fs.DirEntry a mano), y
+// se verifica tanto isExistingHarness como el agentDirToClean resultante.
+func TestClassifyExistingEntries(t *testing.T) {
+	readEntries := func(t *testing.T, names ...string) []os.DirEntry {
+		t.Helper()
+		dir := t.TempDir()
+		for _, name := range names {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte("contenido"), 0644); err != nil {
+				t.Fatalf("no se pudo preparar %s: %v", name, err)
+			}
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("no se pudo leer %s: %v", dir, err)
+		}
+		return entries
+	}
+
+	cases := []struct {
+		name  string
+		files []string
+		want  bool
+	}{
+		{"entries_vacias", nil, false},
+		{"solo_AGENTS.md", []string{"AGENTS.md"}, true},
+		{"solo_feature_list.json", []string{"feature_list.json"}, true},
+		{"ambos", []string{"AGENTS.md", "feature_list.json"}, true},
+		{"otros_archivos_no_relacionados", []string{"README.md", "main.go"}, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			entries := readEntries(t, c.files...)
+			absTarget := filepath.Join("cualquier", "ruta", "destino")
+
+			gotIsExisting, gotAgentDir := classifyExistingEntries(absTarget, entries)
+
+			if gotIsExisting != c.want {
+				t.Errorf("isExistingHarness = %v, se esperaba %v", gotIsExisting, c.want)
+			}
+
+			wantAgentDir := ""
+			if c.want {
+				wantAgentDir = filepath.Join(absTarget, ".claude", "agents")
+			}
+			if gotAgentDir != wantAgentDir {
+				t.Errorf("agentDirToClean = %q, se esperaba %q", gotAgentDir, wantAgentDir)
+			}
+		})
+	}
+}
+
 // TestPlanScaffoldIsPure cubre main.go:planScaffold() de forma aislada, sin
 // pasar por applyPlan: verifica que planScaffold toma decisiones correctas
 // (el modo de init.sh en el plan es 0755, feature_list.json queda con modo
@@ -181,7 +236,7 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 // TestCmdInitScaffoldsEmptyDir cubre la rama "feliz" de scaffoldInit (la
 // lógica de scaffolding de cmdInit, extraída para poder testearla
 // in-process): un directorio vacío recibe el scaffold completo del template
-// embebido, incluidos archivos de la raíz (AGENT.md), el estado inicial
+// embebido, incluidos archivos de la raíz (AGENTS.md), el estado inicial
 // (feature_list.json) y el árbol .claude/agents/.
 func TestCmdInitScaffoldsEmptyDir(t *testing.T) {
 	dest := t.TempDir()
@@ -196,7 +251,7 @@ func TestCmdInitScaffoldsEmptyDir(t *testing.T) {
 		relPath string
 		srcPath string
 	}{
-		{"AGENT.md", "AGENT.md"},
+		{"AGENTS.md", "AGENTS.md"},
 		{filepath.Join(".claude", "agents", "orquestador.md"), filepath.Join(".claude", "agents", "orquestador.md")},
 	}
 	for _, c := range cases {
@@ -300,7 +355,7 @@ func TestCmdInitGitignoreExistenteHaceMerge(t *testing.T) {
 
 // TestCmdInitExistingHarnessRegeneratesAgents cubre la rama
 // "isExistingHarness" de scaffoldInit (la lógica de cmdInit): cuando el
-// directorio destino ya contiene AGENT.md o feature_list.json,
+// directorio destino ya contiene AGENTS.md o feature_list.json,
 // .claude/agents/ se borra por completo antes de volver a escribirse desde
 // el template embebido.
 func TestCmdInitExistingHarnessRegeneratesAgents(t *testing.T) {
@@ -308,8 +363,8 @@ func TestCmdInitExistingHarnessRegeneratesAgents(t *testing.T) {
 
 	// Simula un harness preexistente con un agente "viejo" que no forma
 	// parte del template actual.
-	if err := os.WriteFile(filepath.Join(dest, "AGENT.md"), []byte("# AGENT.md viejo\n"), 0644); err != nil {
-		t.Fatalf("no se pudo preparar AGENT.md preexistente: %v", err)
+	if err := os.WriteFile(filepath.Join(dest, "AGENTS.md"), []byte("# AGENTS.md viejo\n"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar AGENTS.md preexistente: %v", err)
 	}
 	oldAgentsDir := filepath.Join(dest, ".claude", "agents")
 	if err := os.MkdirAll(oldAgentsDir, 0755); err != nil {
