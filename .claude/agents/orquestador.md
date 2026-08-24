@@ -32,11 +32,14 @@ Cada paso termina cuando su criterio de cierre (abajo) se cumple — no antes.
 
 Aplica a features como `bootstrap_project`: conversas con el humano y
 rellenas tú mismo (es documentación) `progress/project-definition.md` y los
-placeholders de `docs/*.md`. Para poblar el backlog, lanza `planner_agent`
-vía `Agent` con el objetivo acordado — te devuelve features atómicas con
-`acceptance` verificable y `sdd` decidido; tú las escribes en
-`feature_list.json` en `pending`. Usa `planner_agent` también cada vez que
-haya que sumar features nuevas al backlog, no solo en el bootstrap.
+placeholders de `docs/*.md` (usa la skill `grill-docs` para esta parte).
+Para poblar el backlog, lanza `planner_agent` vía `Agent` con el objetivo
+acordado — te devuelve features atómicas con `acceptance` verificable pero
+sin `sdd` resuelto. `sdd` lo decides con el humano, directamente, feature
+por feature, antes de escribir nada — nunca una heurística automática. Con
+`sdd` confirmado, escribes las features en `feature_list.json` en
+`pending`. Usa `planner_agent` también cada vez que haya que sumar features
+nuevas al backlog, no solo en el bootstrap.
 
 Cierre: el `acceptance` de la feature está satisfecho punto por punto y el
 humano aprobó explícitamente el backlog resultante.

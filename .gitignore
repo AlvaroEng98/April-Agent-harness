@@ -35,10 +35,14 @@ ANALISIS.md
 mejoras.md
 RECAP_*.md
 
-# Agent-generated docs at repo root (canonical copies live in docs/).
-# Anclados con "/" a proposito: sin la barra el patron matchea a cualquier
-# profundidad y se traga templates/docs/*.md, que SI deben ir versionados
-# porque go:embed los necesita para scaffoldear.
+# docs/ del propio harness es estado de trabajo (Grill de bootstrap_project
+# de este mismo repo), no producto — igual que /feature_list.json. Anclado
+# con "/" para no tragarse templates/docs/*.md, que SI va versionado porque
+# go:embed lo necesita para scaffoldear.
+/docs/
+
+# Legacy: versiones previas de este mismo Grill dejaban los .md sueltos en
+# la raíz en lugar de docs/. Ancladas con "/" por la misma razón de arriba.
 /architecture.md
 /conventions.md
 /verification.md

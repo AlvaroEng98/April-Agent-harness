@@ -16,9 +16,9 @@ nunca se inventa una respuesta plausible en su lugar.
 Lee lo que ya existe — no reabras entrevista sobre algo ya respondido:
 
 - `progress/project-definition.md` — Objetivo y Tech stack ya están ahí.
-- `.claude/agents/orquestador.md`, `.claude/agents/spec_writer.md` y la
-  skill `needs-sdd` — la Fase Spec y su plantilla ya están definidas ahí;
-  `docs/specs.md` las cita, no las repite.
+- `.claude/agents/orquestador.md` y `.claude/agents/spec_writer.md` — la
+  Fase Spec y su plantilla ya están definidas ahí; `docs/specs.md` las
+  cita, no las repite.
 - Cualquier sección ya rellena en un `docs/*.md` parcial — completa los
   huecos, no reescribas lo que ya está.
 
@@ -36,15 +36,29 @@ Secciones: `## Principios` (lista numerada), `## Capas`/`## Módulos`
 
 ### docs/conventions.md
 
-Pregunta: lenguaje/versión, formato/linter, convención de nombres por tipo
-(módulo, tipo, función, constante), estructura estándar de archivo, dónde
-viven los errores de dominio, convención de tests (ubicación, nombres).
+El objetivo de este archivo es no dejarle a `agent_developer` ninguna
+decisión de estilo que el humano pueda fijar de antemano — cada pregunta
+de abajo existe para cerrar una puerta que si no, la abre el agente por su
+cuenta.
 
-Secciones: `## Estilo`, `## Nombres` (tabla tipo → convención → ejemplo),
+Pregunta: lenguaje/versión, gestor de paquetes exacto (p. ej. `uv` y no
+`pip`/`poetry` en Python, `pnpm` y no `npm`/`yarn` en JS/TS, `cargo` en
+Rust — nunca lo dejes implícito ni lo infieras del lockfile que haya:
+pregúntalo y anótalo, aunque solo haya una opción razonable), formato/
+linter, convención de nombres por tipo (módulo, tipo, función, variable,
+constante) con al menos un ejemplo real por tipo, estructura estándar de
+archivo, dónde viven los errores de dominio, convención de tests
+(ubicación, nombres).
+
+Secciones: `## Estilo`, `## Gestor de paquetes` (herramienta exacta +
+comando de instalación/añadido de dependencias — sin esto, cierra la
+sección con `_pendiente_`, nunca asumas uno por defecto), `## Nombres`
+(tabla tipo → convención → ejemplo, con ejemplo real, no genérico),
 `## Estructura de archivo`, `## Tests`, `## Manejo de errores`,
 `## Comentarios` — por defecto sin comentarios salvo *por qué* no obvio
 (mismo criterio que las instrucciones globales de la sesión; no lo
-contradigas).
+contradigas), pero deja un ejemplo concreto de un comentario aceptable y
+uno rechazado para este proyecto, no solo la regla en abstracto.
 
 ### docs/verification.md
 
@@ -64,7 +78,9 @@ lo que debería ser real), `## Verificación final antes de cerrar` → cita
 No es una plantilla nueva — es el mapa de la Fase Spec que ya vive en
 `.claude/agents/orquestador.md` y `.claude/agents/spec_writer.md`. Escribe:
 
-- Cuándo aplica (`sdd: true`) y quién decide (skill `needs-sdd`).
+- Cuándo aplica (`sdd: true`) y quién decide — el humano, directamente,
+  feature por feature junto al orquestador; nunca una heurística
+  automática.
 - Quién escribe el spec (`spec_writer`) y dónde
   (`specs/<name>/spec.md`) — cita la plantilla de `spec_writer.md`, no la
   copies aquí: si cambia allá, esta copia quedaría desactualizada y
