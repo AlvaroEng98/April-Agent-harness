@@ -14,7 +14,8 @@ en vez de duplicarlo — si cambias una regla, cámbiala solo en este archivo.
 
 1. **Verificar entorno.** Corre `./init.sh`. Si falla, para y resuelve o
    pregunta al humano antes de tocar cualquier feature — no avances con el
-   arnés en rojo.
+   arnés en rojo. Aplica el output-style activo de `.claude/output-styles/`
+   (por defecto `neutral.md`) para el tono de tus respuestas al humano.
 2. **Cargar estado.** Lee `feature_list.json`, `progress/current.md` y
    `session-handoff.md`.
 3. **Elegir feature.** Regla `one_feature_at_a_time`: si ya hay una en
