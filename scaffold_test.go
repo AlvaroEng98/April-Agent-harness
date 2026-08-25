@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 // TestMergeGitignore cubre main.go:mergeGitignore() en sus tres ramas: el
@@ -76,65 +77,71 @@ func TestMergeGitignore(t *testing.T) {
 	})
 }
 
-// TestClassifyExistingEntries cubre main.go:classifyExistingEntries() de
-// forma aislada y tabular, sin pasar por embed.FS ni por applyPlan: las
-// entries se fabrican escribiendo archivos reales en un directorio temporal y
-// leyéndolas con os.ReadDir (más simple que fabricar fs.DirEntry a mano), y
-// se verifica tanto isExistingHarness como el agentDirToClean resultante.
-func TestClassifyExistingEntries(t *testing.T) {
-	readEntries := func(t *testing.T, names ...string) []os.DirEntry {
-		t.Helper()
-		dir := t.TempDir()
-		for _, name := range names {
-			if err := os.WriteFile(filepath.Join(dir, name), []byte("contenido"), 0644); err != nil {
-				t.Fatalf("no se pudo preparar %s: %v", name, err)
-			}
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			t.Fatalf("no se pudo leer %s: %v", dir, err)
-		}
-		return entries
+// TestWriteManifestThenLoadManifestRoundtrip cubre el par
+// writeManifest/loadManifest de forma aislada, sin pasar por planScaffold ni
+// applyPlan: lo que se escribe con writeManifest debe leerse de vuelta igual
+// con loadManifest, con found=true y corrupt=false (el manifiesto sí existía
+// y era válido).
+func TestWriteManifestThenLoadManifestRoundtrip(t *testing.T) {
+	dest := t.TempDir()
+
+	want := manifest{
+		Files: map[string]manifestEntry{
+			"AGENTS.md":         {Hash: hashContent([]byte("contenido AGENTS.md"))},
+			"feature_list.json": {Hash: hashContent([]byte("contenido feature_list.json"))},
+		},
 	}
 
-	cases := []struct {
-		name  string
-		files []string
-		want  bool
-	}{
-		{"entries_vacias", nil, false},
-		{"solo_AGENTS.md", []string{"AGENTS.md"}, true},
-		{"solo_feature_list.json", []string{"feature_list.json"}, true},
-		{"ambos", []string{"AGENTS.md", "feature_list.json"}, true},
-		{"otros_archivos_no_relacionados", []string{"README.md", "main.go"}, false},
+	if err := writeManifest(dest, want); err != nil {
+		t.Fatalf("writeManifest falló: %v", err)
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			entries := readEntries(t, c.files...)
-			absTarget := filepath.Join("cualquier", "ruta", "destino")
+	result := loadManifest(dest)
+	if !result.found {
+		t.Errorf("se esperaba found=true tras escribir el manifiesto")
+	}
+	if result.corrupt {
+		t.Errorf("se esperaba corrupt=false para un manifiesto recién escrito")
+	}
+	if result.manifest.SchemaVersion != manifestSchemaVersion {
+		t.Errorf("SchemaVersion = %d, se esperaba %d", result.manifest.SchemaVersion, manifestSchemaVersion)
+	}
+	for path, entry := range want.Files {
+		got, ok := result.manifest.Files[path]
+		if !ok {
+			t.Errorf("falta la entrada %q tras el roundtrip", path)
+			continue
+		}
+		if got.Hash != entry.Hash {
+			t.Errorf("hash de %q = %q, se esperaba %q", path, got.Hash, entry.Hash)
+		}
+	}
+}
 
-			gotIsExisting, gotAgentDir := classifyExistingEntries(absTarget, entries)
+// TestLoadManifestAusenteEsAdopcion cubre que loadManifest sobre un destino
+// sin .claude/manifest.json devuelve found=false, corrupt=false y un
+// manifiesto vacío (nunca un error fatal): es la señal para entrar en modo
+// adopción, no un caso de error.
+func TestLoadManifestAusenteEsAdopcion(t *testing.T) {
+	dest := t.TempDir()
 
-			if gotIsExisting != c.want {
-				t.Errorf("isExistingHarness = %v, se esperaba %v", gotIsExisting, c.want)
-			}
-
-			wantAgentDir := ""
-			if c.want {
-				wantAgentDir = filepath.Join(absTarget, ".claude", "agents")
-			}
-			if gotAgentDir != wantAgentDir {
-				t.Errorf("agentDirToClean = %q, se esperaba %q", gotAgentDir, wantAgentDir)
-			}
-		})
+	result := loadManifest(dest)
+	if result.found {
+		t.Errorf("se esperaba found=false: no hay manifiesto en %s", dest)
+	}
+	if result.corrupt {
+		t.Errorf("se esperaba corrupt=false: la ausencia de manifiesto no es corrupción")
+	}
+	if len(result.manifest.Files) != 0 {
+		t.Errorf("se esperaba un manifiesto vacío, se obtuvo %v", result.manifest.Files)
 	}
 }
 
 // TestPlanScaffoldIsPure cubre main.go:planScaffold() de forma aislada, sin
 // pasar por applyPlan: verifica que planScaffold toma decisiones correctas
 // (el modo de init.sh en el plan es 0755, feature_list.json queda con modo
-// 0644 y su contenido viene del template embebido) sin escribir ni un solo
+// 0644 y su contenido viene del template embebido, y se marca como
+// actionCreate porque no hay manifiesto previo) sin escribir ni un solo
 // archivo en disco (feature scaffold_decision_io_seam, acceptance A2/A7).
 func TestPlanScaffoldIsPure(t *testing.T) {
 	// dest no existe todavía (nested dentro de un tempdir vacío): ejercita la
@@ -153,6 +160,9 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 
 	if !plan.createTargetDir {
 		t.Errorf("se esperaba createTargetDir=true para un directorio inexistente al llamar os.ReadDir por primera vez")
+	}
+	if plan.manifestFound {
+		t.Errorf("se esperaba manifestFound=false: no hay .claude/manifest.json en un destino inexistente")
 	}
 
 	var initSh, featureList *scaffoldFileWrite
@@ -176,8 +186,8 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 	if featureList.mode != 0644 {
 		t.Errorf("se esperaba modo 0644 para feature_list.json en el plan, se obtuvo %o", featureList.mode)
 	}
-	if featureList.isUpdate {
-		t.Errorf("feature_list.json no debería marcarse como merge/update en un destino vacío")
+	if featureList.action != actionCreate {
+		t.Errorf("action = %v, se esperaba actionCreate en un destino vacío sin manifiesto previo", featureList.action)
 	}
 
 	wantDirs := []string{
@@ -252,7 +262,7 @@ func TestCmdInitScaffoldsEmptyDir(t *testing.T) {
 		srcPath string
 	}{
 		{"AGENTS.md", "AGENTS.md"},
-		{filepath.Join(".claude", "agents", "orquestador.md"), filepath.Join(".claude", "agents", "orquestador.md")},
+		{filepath.Join(".claude", "agents", "spec_writer.md"), filepath.Join(".claude", "agents", "spec_writer.md")},
 	}
 	for _, c := range cases {
 		gotPath := filepath.Join(dest, c.relPath)
@@ -353,44 +363,602 @@ func TestCmdInitGitignoreExistenteHaceMerge(t *testing.T) {
 	}
 }
 
-// TestCmdInitExistingHarnessRegeneratesAgents cubre la rama
-// "isExistingHarness" de scaffoldInit (la lógica de cmdInit): cuando el
-// directorio destino ya contiene AGENTS.md o feature_list.json,
-// .claude/agents/ se borra por completo antes de volver a escribirse desde
-// el template embebido.
-func TestCmdInitExistingHarnessRegeneratesAgents(t *testing.T) {
+// TestArchivoNuevoDelTemplateSeEscribeYSeRegistra cubre la celda "create" de
+// la tabla de decisión: un archivo que no estaba en el manifiesto anterior
+// (nuevo.txt) se escribe con el contenido de la plantilla y se registra en
+// el manifiesto del plan con su hash.
+func TestArchivoNuevoDelTemplateSeEscribeYSeRegistra(t *testing.T) {
 	dest := t.TempDir()
-
-	// Simula un harness preexistente con un agente "viejo" que no forma
-	// parte del template actual.
-	if err := os.WriteFile(filepath.Join(dest, "AGENTS.md"), []byte("# AGENTS.md viejo\n"), 0644); err != nil {
-		t.Fatalf("no se pudo preparar AGENTS.md preexistente: %v", err)
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"viejo.txt": {Hash: hashContent([]byte("contenido viejo"))},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
 	}
-	oldAgentsDir := filepath.Join(dest, ".claude", "agents")
-	if err := os.MkdirAll(oldAgentsDir, 0755); err != nil {
-		t.Fatalf("no se pudo preparar .claude/agents/ preexistente: %v", err)
-	}
-	oldAgentPath := filepath.Join(oldAgentsDir, "agente_obsoleto.md")
-	if err := os.WriteFile(oldAgentPath, []byte("# agente obsoleto\n"), 0644); err != nil {
-		t.Fatalf("no se pudo preparar agente obsoleto: %v", err)
+	if err := os.WriteFile(filepath.Join(dest, "viejo.txt"), []byte("contenido viejo"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar viejo.txt: %v", err)
 	}
 
-	out, err := captureStdout(t, func() error {
-		return scaffoldInit(dest)
-	})
+	tmplFS := fstest.MapFS{
+		"viejo.txt": {Data: []byte("contenido viejo")},
+		"nuevo.txt": {Data: []byte("contenido nuevo del template")},
+	}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
 	if err != nil {
-		t.Fatalf("scaffoldInit falló: %v", err)
-	}
-	if !strings.Contains(out, "Existing harness project detected") {
-		t.Errorf("se esperaba el aviso de harness existente en la salida, se obtuvo:\n%s", out)
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
 	}
 
-	if _, err := os.Stat(oldAgentPath); !os.IsNotExist(err) {
-		t.Errorf("agente_obsoleto.md debería haberse borrado al regenerar .claude/agents/, err=%v", err)
+	var nuevo *scaffoldFileWrite
+	for i := range plan.files {
+		if plan.files[i].relPath == "nuevo.txt" {
+			nuevo = &plan.files[i]
+		}
+	}
+	if nuevo == nil {
+		t.Fatalf("el plan no incluye nuevo.txt")
+	}
+	if nuevo.action != actionCreate {
+		t.Errorf("action = %v, se esperaba actionCreate", nuevo.action)
 	}
 
-	regenerated := filepath.Join(dest, ".claude", "agents", "orquestador.md")
-	if _, err := os.Stat(regenerated); err != nil {
-		t.Errorf(".claude/agents/orquestador.md debería haberse regenerado: %v", err)
+	wantHash := hashContent([]byte("contenido nuevo del template"))
+	if entry, ok := plan.manifest.Files["nuevo.txt"]; !ok || entry.Hash != wantHash {
+		t.Errorf("el manifiesto del plan no registra nuevo.txt con el hash correcto, got=%v", plan.manifest.Files["nuevo.txt"])
+	}
+}
+
+// TestArchivoNoTocadoPorUsuarioSeActualiza cubre la celda "update": el disco
+// coincide con el hash del manifiesto anterior (el usuario no tocó el
+// archivo), así que se sobreescribe con la plantilla nueva y se actualiza el
+// hash registrado.
+func TestArchivoNoTocadoPorUsuarioSeActualiza(t *testing.T) {
+	dest := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dest, "config.txt"), []byte("v1"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"config.txt": {Hash: hashContent([]byte("v1"))},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"config.txt": {Data: []byte("v2")}}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	var fw *scaffoldFileWrite
+	for i := range plan.files {
+		if plan.files[i].relPath == "config.txt" {
+			fw = &plan.files[i]
+		}
+	}
+	if fw == nil {
+		t.Fatalf("el plan no incluye config.txt")
+	}
+	if fw.action != actionUpdate {
+		t.Errorf("action = %v, se esperaba actionUpdate", fw.action)
+	}
+	if string(fw.content) != "v2" {
+		t.Errorf("content = %q, se esperaba el contenido de la plantilla nueva %q", fw.content, "v2")
+	}
+
+	wantHash := hashContent([]byte("v2"))
+	if entry := plan.manifest.Files["config.txt"]; entry.Hash != wantHash {
+		t.Errorf("el manifiesto del plan no actualiza el hash de config.txt, got=%v, want=%q", entry, wantHash)
+	}
+}
+
+// TestArchivoTocadoPorUsuarioYTemplateSinCambios_NoSeToca cubre la celda
+// "skip silencioso": el disco no coincide con el manifiesto (el usuario tocó
+// el archivo) pero la plantilla tampoco cambió respecto de lo registrado, así
+// que se deja tal cual sin avisar.
+func TestArchivoTocadoPorUsuarioYTemplateSinCambios_NoSeToca(t *testing.T) {
+	dest := t.TempDir()
+	original := []byte("original")
+	edited := []byte("editado por el usuario")
+	destFile := filepath.Join(dest, "config.txt")
+	if err := os.WriteFile(destFile, edited, 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"config.txt": {Hash: hashContent(original)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"config.txt": {Data: original}}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	var fw *scaffoldFileWrite
+	for i := range plan.files {
+		if plan.files[i].relPath == "config.txt" {
+			fw = &plan.files[i]
+		}
+	}
+	if fw == nil {
+		t.Fatalf("el plan no incluye config.txt")
+	}
+	if fw.action != actionSkipUnmodified {
+		t.Errorf("action = %v, se esperaba actionSkipUnmodified", fw.action)
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if strings.Contains(out, "config.txt") {
+		t.Errorf("no debería avisarse sobre config.txt en un skip silencioso, se obtuvo:\n%s", out)
+	}
+
+	got, err := os.ReadFile(destFile)
+	if err != nil {
+		t.Fatalf("no se pudo leer config.txt: %v", err)
+	}
+	if string(got) != string(edited) {
+		t.Errorf("config.txt no debería tocarse, se obtuvo %q", got)
+	}
+}
+
+// TestArchivoTocadoPorUsuarioYTemplateCambio_Conflicto cubre la celda "skip
+// con aviso": el disco no coincide con el manifiesto (usuario tocó) y la
+// plantilla también cambió (conflicto real), así que se conserva la versión
+// del usuario y se imprime un aviso mencionando el archivo.
+func TestArchivoTocadoPorUsuarioYTemplateCambio_Conflicto(t *testing.T) {
+	dest := t.TempDir()
+	original := []byte("original")
+	edited := []byte("editado por el usuario")
+	destFile := filepath.Join(dest, "config.txt")
+	if err := os.WriteFile(destFile, edited, 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"config.txt": {Hash: hashContent(original)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"config.txt": {Data: []byte("plantilla nueva")}}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	var fw *scaffoldFileWrite
+	for i := range plan.files {
+		if plan.files[i].relPath == "config.txt" {
+			fw = &plan.files[i]
+		}
+	}
+	if fw == nil {
+		t.Fatalf("el plan no incluye config.txt")
+	}
+	if fw.action != actionSkipConflict {
+		t.Errorf("action = %v, se esperaba actionSkipConflict", fw.action)
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if !strings.Contains(out, "config.txt") {
+		t.Errorf("se esperaba un aviso mencionando config.txt, se obtuvo:\n%s", out)
+	}
+
+	got, err := os.ReadFile(destFile)
+	if err != nil {
+		t.Fatalf("no se pudo leer config.txt: %v", err)
+	}
+	if string(got) != string(edited) {
+		t.Errorf("config.txt no debería sobreescribirse en un conflicto, se obtuvo %q", got)
+	}
+}
+
+// TestArchivoObsoletoNoModificadoSeBorra cubre el borrado de archivos que ya
+// no vienen en la plantilla nueva: si el disco coincide con el hash
+// registrado (el usuario no lo tocó), se borra.
+func TestArchivoObsoletoNoModificadoSeBorra(t *testing.T) {
+	dest := t.TempDir()
+	oldPath := filepath.Join(dest, "old.txt")
+	content := []byte("contenido antiguo")
+	if err := os.WriteFile(oldPath, content, 0644); err != nil {
+		t.Fatalf("no se pudo preparar old.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"old.txt": {Hash: hashContent(content)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{} // la plantilla ya no trae old.txt
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	found := false
+	for _, del := range plan.filesToDelete {
+		if del.relPath == "old.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("se esperaba old.txt en filesToDelete, got=%v", plan.filesToDelete)
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan) }); err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+
+	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+		t.Errorf("old.txt debería haberse borrado, err=%v", err)
+	}
+}
+
+// TestArchivoObsoletoModificadoNoSeBorra cubre la misma situación pero con el
+// usuario habiendo modificado el archivo: no coincide con el hash
+// registrado, así que se conserva en vez de borrarse.
+func TestArchivoObsoletoModificadoNoSeBorra(t *testing.T) {
+	dest := t.TempDir()
+	oldPath := filepath.Join(dest, "old.txt")
+	original := []byte("contenido original")
+	edited := []byte("contenido editado por el usuario")
+	if err := os.WriteFile(oldPath, edited, 0644); err != nil {
+		t.Fatalf("no se pudo preparar old.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"old.txt": {Hash: hashContent(original)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	for _, del := range plan.filesToDelete {
+		if del.relPath == "old.txt" {
+			t.Errorf("old.txt modificado por el usuario no debería borrarse")
+		}
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan) }); err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+
+	if _, err := os.Stat(oldPath); err != nil {
+		t.Errorf("old.txt modificado debería conservarse, err=%v", err)
+	}
+}
+
+// TestPrimeraCorridaSinManifiesto_ModoAdopcion cubre el modo adopción: sin
+// .claude/manifest.json previo, no se sobreescribe ni se borra nada que ya
+// exista en disco (el usuario venía trabajando sobre un scaffold de una
+// versión anterior de april); solo se crean los archivos de plantilla que
+// falten por completo y se adopta el hash de lo existente como línea base.
+func TestPrimeraCorridaSinManifiesto_ModoAdopcion(t *testing.T) {
+	dest := t.TempDir()
+	existing := []byte("feature list del usuario, con progreso real")
+	if err := os.WriteFile(filepath.Join(dest, "feature_list.json"), existing, 0644); err != nil {
+		t.Fatalf("no se pudo preparar feature_list.json: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{
+		"feature_list.json": {Data: []byte("feature list nuevo del template")},
+		"AGENTS.md":         {Data: []byte("contenido AGENTS.md")},
+	}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+	if plan.manifestFound {
+		t.Errorf("se esperaba manifestFound=false: no hay manifiesto previo")
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if !strings.Contains(out, "adopci") {
+		t.Errorf("se esperaba un aviso de modo adopción en la salida, se obtuvo:\n%s", out)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, "feature_list.json"))
+	if err != nil {
+		t.Fatalf("no se pudo leer feature_list.json: %v", err)
+	}
+	if string(got) != string(existing) {
+		t.Errorf("modo adopción no debe sobreescribir feature_list.json existente, se obtuvo %q", got)
+	}
+
+	if _, err := os.Stat(filepath.Join(dest, "AGENTS.md")); err != nil {
+		t.Errorf("modo adopción debe crear los archivos de plantilla que falten por completo: %v", err)
+	}
+
+	result := loadManifest(dest)
+	wantHash := hashContent(existing)
+	if entry := result.manifest.Files["feature_list.json"]; entry.Hash != wantHash {
+		t.Errorf("modo adopción debe registrar el hash del contenido en disco, got=%v, want=%q", entry, wantHash)
+	}
+}
+
+// TestSegundaCorridaTrasAdopcionYaDiffeaDeVerdad cubre que, tras la corrida
+// de adopción, el manifiesto queda establecido y la corrida siguiente ya
+// sincroniza de verdad contra la plantilla (deja de ser puro modo
+// protección).
+func TestSegundaCorridaTrasAdopcionYaDiffeaDeVerdad(t *testing.T) {
+	dest := t.TempDir()
+	existing := []byte("feature list del usuario, con progreso real")
+	if err := os.WriteFile(filepath.Join(dest, "feature_list.json"), existing, 0644); err != nil {
+		t.Fatalf("no se pudo preparar feature_list.json: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{
+		"feature_list.json": {Data: []byte("feature list nuevo del template")},
+	}
+
+	plan1, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (primera corrida) falló: %v", err)
+	}
+	if _, err := captureStdout(t, func() error { return applyPlan(plan1) }); err != nil {
+		t.Fatalf("applyPlan (primera corrida) falló: %v", err)
+	}
+
+	plan2, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (segunda corrida) falló: %v", err)
+	}
+	if !plan2.manifestFound {
+		t.Errorf("se esperaba manifestFound=true en la segunda corrida: ya existe el manifiesto de la adopción")
+	}
+
+	var fw *scaffoldFileWrite
+	for i := range plan2.files {
+		if plan2.files[i].relPath == "feature_list.json" {
+			fw = &plan2.files[i]
+		}
+	}
+	if fw == nil {
+		t.Fatalf("el plan de la segunda corrida no incluye feature_list.json")
+	}
+	if fw.action != actionUpdate {
+		t.Errorf("action = %v, se esperaba actionUpdate: el usuario no tocó el archivo desde la adopción", fw.action)
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan2) }); err != nil {
+		t.Fatalf("applyPlan (segunda corrida) falló: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dest, "feature_list.json"))
+	if err != nil {
+		t.Fatalf("no se pudo leer feature_list.json: %v", err)
+	}
+	if string(got) != "feature list nuevo del template" {
+		t.Errorf("la segunda corrida debería sincronizar de verdad con la plantilla, se obtuvo %q", got)
+	}
+}
+
+// TestManifiestoCorrupto_TratadoComoAdopcionConAviso cubre que un
+// .claude/manifest.json con JSON inválido no aborta el comando: se trata
+// igual que la ausencia de manifiesto (modo adopción) y se avisa.
+func TestManifiestoCorrupto_TratadoComoAdopcionConAviso(t *testing.T) {
+	dest := t.TempDir()
+	manifestFile := manifestPath(dest)
+	if err := os.MkdirAll(filepath.Dir(manifestFile), 0755); err != nil {
+		t.Fatalf("no se pudo preparar .claude/: %v", err)
+	}
+	if err := os.WriteFile(manifestFile, []byte("{ esto no es json válido"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto corrupto: %v", err)
+	}
+
+	existing := []byte("contenido del usuario")
+	if err := os.WriteFile(filepath.Join(dest, "config.txt"), existing, 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"config.txt": {Data: []byte("plantilla nueva")}}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+	if !plan.manifestCorrupt {
+		t.Errorf("se esperaba manifestCorrupt=true para JSON inválido")
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if !strings.Contains(out, "corrupto") && !strings.Contains(out, "inválido") {
+		t.Errorf("se esperaba un aviso de manifiesto corrupto en la salida, se obtuvo:\n%s", out)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, "config.txt"))
+	if err != nil {
+		t.Fatalf("no se pudo leer config.txt: %v", err)
+	}
+	if string(got) != string(existing) {
+		t.Errorf("manifiesto corrupto no debe sobreescribir contenido existente, se obtuvo %q", got)
+	}
+}
+
+// TestFeatureListJsonProtegidoSinCasoEspecial es la regresión end-to-end del
+// pedido original: feature_list.json editado por el usuario sobrevive a una
+// segunda corrida sin que el código tenga ningún `if relPath ==
+// "feature_list.json"` — la protección sale sola de la regla general.
+func TestFeatureListJsonProtegidoSinCasoEspecial(t *testing.T) {
+	dest := t.TempDir()
+	tmplFS := fstest.MapFS{"feature_list.json": {Data: []byte(`{"features":[]}`)}}
+
+	plan1, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (primera corrida) falló: %v", err)
+	}
+	if _, err := captureStdout(t, func() error { return applyPlan(plan1) }); err != nil {
+		t.Fatalf("applyPlan (primera corrida) falló: %v", err)
+	}
+
+	edited := []byte(`{"features":[{"id":1,"name":"algo real"}]}`)
+	if err := os.WriteFile(filepath.Join(dest, "feature_list.json"), edited, 0644); err != nil {
+		t.Fatalf("no se pudo editar feature_list.json: %v", err)
+	}
+
+	plan2, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (segunda corrida) falló: %v", err)
+	}
+	if _, err := captureStdout(t, func() error { return applyPlan(plan2) }); err != nil {
+		t.Fatalf("applyPlan (segunda corrida) falló: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, "feature_list.json"))
+	if err != nil {
+		t.Fatalf("no se pudo leer feature_list.json: %v", err)
+	}
+	if string(got) != string(edited) {
+		t.Errorf("feature_list.json editado por el usuario no debería perderse en una segunda corrida, se obtuvo %q", got)
+	}
+}
+
+// TestProgressHistoryMdProtegidoEnConflictoRealSinCasoEspecial cubre el mismo
+// mecanismo genérico que TestFeatureListJsonProtegidoSinCasoEspecial pero con
+// una ruta anidada (progress/history.md, distinta de un archivo plano en la
+// raíz) y forzando el caso de conflicto real: el usuario edita el archivo
+// semilla a mano (simulando trabajo real de progreso) Y la plantilla nueva
+// también cambia ese mismo archivo en la segunda corrida. El resultado
+// esperado es que la edición del usuario sobreviva intacta, salga el aviso de
+// conflicto mencionando el archivo, y el manifiesto conserve el hash de la
+// versión del usuario (no el de la plantilla nueva) — todo sin que
+// scaffold.go tenga ningún `if relPath == "progress/history.md"`.
+func TestProgressHistoryMdProtegidoEnConflictoRealSinCasoEspecial(t *testing.T) {
+	dest := t.TempDir()
+	tmplFS1 := fstest.MapFS{"progress/history.md": {Data: []byte("# Historial\n\n(vacío)\n")}}
+
+	plan1, err := planScaffoldFromFS(dest, tmplFS1)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (primera corrida) falló: %v", err)
+	}
+	if _, err := captureStdout(t, func() error { return applyPlan(plan1) }); err != nil {
+		t.Fatalf("applyPlan (primera corrida) falló: %v", err)
+	}
+
+	edited := []byte("# Historial\n\n## 2026-08-25\n\nSe implementó scaffold_manifest_sync.\n")
+	historyPath := filepath.Join(dest, "progress", "history.md")
+	if err := os.WriteFile(historyPath, edited, 0644); err != nil {
+		t.Fatalf("no se pudo editar progress/history.md: %v", err)
+	}
+
+	// La plantilla también cambia en la segunda corrida: esto fuerza el caso
+	// de conflicto real (usuario tocó Y plantilla cambió), a diferencia de
+	// dejar la plantilla igual (que caería en el skip silencioso por
+	// "usuario tocó, plantilla no cambió").
+	tmplFS2 := fstest.MapFS{"progress/history.md": {Data: []byte("# Historial\n\n(plantilla actualizada)\n")}}
+
+	plan2, err := planScaffoldFromFS(dest, tmplFS2)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS (segunda corrida) falló: %v", err)
+	}
+	stdout, err := captureStdout(t, func() error { return applyPlan(plan2) })
+	if err != nil {
+		t.Fatalf("applyPlan (segunda corrida) falló: %v", err)
+	}
+
+	got, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("no se pudo leer progress/history.md: %v", err)
+	}
+	if string(got) != string(edited) {
+		t.Errorf("progress/history.md editado por el usuario no debería perderse en una segunda corrida con conflicto real, se obtuvo %q", got)
+	}
+
+	if !strings.Contains(stdout, "progress/history.md") {
+		t.Errorf("se esperaba un aviso de conflicto mencionando progress/history.md, salida obtenida:\n%s", stdout)
+	}
+
+	result := loadManifest(dest)
+	entry, ok := result.manifest.Files["progress/history.md"]
+	if !ok {
+		t.Fatalf("progress/history.md debería seguir registrado en el manifiesto tras el conflicto")
+	}
+	if entry.Hash != hashContent(edited) {
+		t.Errorf("el manifiesto debería conservar el hash de la versión editada por el usuario, no el de la plantilla nueva")
+	}
+}
+
+// TestGitignoreNuncaEntraAlManifiesto cubre que .gitignore queda fuera del
+// manifiesto por completo, tanto en el plan como en lo que queda escrito en
+// disco tras applyPlan: sigue con su lógica de merge propia, no con el diff
+// genérico.
+func TestGitignoreNuncaEntraAlManifiesto(t *testing.T) {
+	dest := t.TempDir()
+	tmplFS := fstest.MapFS{".gitignore": {Data: []byte("node_modules/\n")}}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+	if _, ok := plan.manifest.Files[".gitignore"]; ok {
+		t.Errorf(".gitignore no debería entrar al manifiesto del plan")
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan) }); err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+
+	result := loadManifest(dest)
+	if _, ok := result.manifest.Files[".gitignore"]; ok {
+		t.Errorf(".gitignore no debería quedar registrado en .claude/manifest.json tras applyPlan")
+	}
+}
+
+// TestManifestJsonEmbebidoNuncaSePropaga cubre la mitigación de dogfooding:
+// si por error .claude/manifest.json de este propio repo quedara embebido en
+// el fs.FS de plantilla (porque alguien corrió april init sobre este mismo
+// repo), planScaffoldFromFS lo salta explícitamente y nunca lo escribe en el
+// destino ni lo entra al manifiesto nuevo.
+func TestManifestJsonEmbebidoNuncaSePropaga(t *testing.T) {
+	dest := t.TempDir()
+	tmplFS := fstest.MapFS{
+		".claude/manifest.json": {Data: []byte(`{"schemaVersion":1,"files":{"algo":{"hash":"x"}}}`)},
+		"AGENTS.md":             {Data: []byte("contenido AGENTS.md")},
+	}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	for _, fw := range plan.files {
+		if fw.relPath == ".claude/manifest.json" {
+			t.Errorf(".claude/manifest.json embebido en la plantilla no debería propagarse al plan")
+		}
+	}
+	if _, ok := plan.manifest.Files[".claude/manifest.json"]; ok {
+		t.Errorf(".claude/manifest.json no debería entrar al manifiesto nuevo")
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan) }); err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+
+	// applyPlan sí escribe SU PROPIO .claude/manifest.json al final (el real,
+	// resultado de este plan) — lo que no debe pasar es que el contenido
+	// embebido falso ("algo") se haya colado dentro de él.
+	result := loadManifest(dest)
+	if _, ok := result.manifest.Files["algo"]; ok {
+		t.Errorf("el contenido de .claude/manifest.json embebido en la plantilla no debería colarse en el manifiesto real del destino")
 	}
 }

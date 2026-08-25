@@ -17,7 +17,13 @@ trabajo termina en un reporte, no en un cierre de feature — cerrar status a
 1. Lee el spec (si existe) y el `acceptance` de la feature. Si algo es
    ambiguo o el spec no cubre lo que te pidieron, para y repórtalo — no
    improvises alcance.
-2. Implementa en `src/` (o el árbol de código que aplique) y sus tests.
+2. Implementa siguiendo el ciclo red → green sobre los seams de la spec:
+   escribe primero el test que falla, luego solo el código mínimo para
+   pasarlo — sin adelantar tests futuros ni features especulativas. Un
+   seam, un test, una implementación mínima por ciclo; el refactor no es
+   parte de este ciclo (queda para revisión, no para implementación).
+   Mockea solo en fronteras del sistema (APIs externas, DB, tiempo o
+   aleatoriedad) — nunca tus propios módulos o colaboradores internos.
 3. Corre los comandos de verificación relevantes (`docs/verification.md` si
    existe, o el comando que te haya pasado el orquestador). No reportes
    éxito sin haber corrido algo.

@@ -13,7 +13,7 @@
     ],
     "human_approval_required_to_close": true,
     "sdd_required_when": "feature has \"sdd\": true",
-    "flows_and_challenge_gates": "ver .claude/agents/orquestador.md — fuente única, no la dupliques aquí"
+    "flows_and_challenge_gates": "ver CLAUDE.md — fuente única, no la dupliques aquí"
   },
   "features": [
     {

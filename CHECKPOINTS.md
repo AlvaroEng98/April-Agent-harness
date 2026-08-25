@@ -2,7 +2,7 @@
 
 > En sistemas multi-agente no se evalúa el camino, se evalúa el destino.
 > El orquestador recorre esta lista antes de cerrar una sesión (paso
-> "Cerrar sesión" en `.claude/agents/orquestador.md`) y marca cada casilla
+> "Cerrar sesión" en `CLAUDE.md`) y marca cada casilla
 > `[x]`/`[ ]`. Si queda una casilla vacía en C1-C5, la sesión no cierra.
 
 ## C1 — El arnés está completo
@@ -24,6 +24,10 @@
 - [ ] Toda feature `done` tiene veredicto `APPROVED` o
       `APPROVED_WITH_OBJECTION` de `reviewer_agent` — nunca
       `CHANGES_REQUESTED` sin resolver.
+- [ ] Si la feature es `sdd: true` y tiene tickets en
+      `specs/<name>/tickets/`, el humano aprobó explícitamente el
+      desglose (granularidad y `Blocked by`) antes de que existieran esos
+      archivos — gate de Fase Tickets en `CLAUDE.md`.
 - [ ] `progress/current.md` describe la feature activa o dice
       explícitamente que no hay ninguna — nada de sesiones anteriores sin
       limpiar.

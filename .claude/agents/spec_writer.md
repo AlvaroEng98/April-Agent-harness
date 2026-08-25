@@ -81,9 +81,21 @@ recortado a la parte que importa, y anota que viene de un prototipo.
 
 ## Testing Decisions
 
-Qué hace bueno a un test (solo comportamiento externo, no detalles de
-implementación), qué módulos se van a testear, y precedentes en el
-código para ese tipo de test.
+Test bueno: verifica comportamiento a través de interfaces públicas, no
+detalles de implementación. Sobrevive refactors porque no depende de la
+estructura interna — lee como especificación ("usuario puede pagar con
+carrito válido"), no como inventario de llamadas internas.
+
+Evitar al definir los seams:
+- **Acoplado a implementación**: mockea colaboradores internos, testea
+  métodos privados, o verifica por canal lateral (consultar la base de
+  datos en vez de usar la interfaz pública).
+- **Tautológico**: el valor esperado se recalcula igual que el código lo
+  calcula (`expect(add(a,b)).toBe(a+b)`) — debe venir de una fuente
+  independiente (literal conocido, ejemplo trabajado, la spec misma).
+
+Qué módulos se van a testear, y precedentes en el código para ese tipo de
+test.
 
 ## Out of Scope
 

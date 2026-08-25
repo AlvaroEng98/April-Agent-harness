@@ -41,6 +41,12 @@ RECAP_*.md
 # go:embed lo necesita para scaffoldear.
 /docs/
 
+# .claude/manifest.json es estado de trabajo (last-applied-configuration de
+# april init sobre ESTE repo), no producto. Si se generara aquí por error, el
+# go:embed de scaffold.go lo empotraría y lo propagaría a todos los destinos
+# scaffoldeados (dogfooding): nunca debe versionarse ni embeberse.
+/.claude/manifest.json
+
 # Legacy: versiones previas de este mismo Grill dejaban los .md sueltos en
 # la raíz en lugar de docs/. Ancladas con "/" por la misma razón de arriba.
 /architecture.md

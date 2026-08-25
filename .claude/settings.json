@@ -1,4 +1,5 @@
 {
+  "outputStyle": "Neutral",
   "permissions": {
     "allow": [
       "Bash(./init.sh)",

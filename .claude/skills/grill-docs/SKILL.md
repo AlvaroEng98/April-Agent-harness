@@ -16,9 +16,10 @@ nunca se inventa una respuesta plausible en su lugar.
 Lee lo que ya existe — no reabras entrevista sobre algo ya respondido:
 
 - `progress/project-definition.md` — Objetivo y Tech stack ya están ahí.
-- `.claude/agents/orquestador.md` y `.claude/agents/spec_writer.md` — la
-  Fase Spec y su plantilla ya están definidas ahí; `docs/specs.md` las
-  cita, no las repite.
+- `CLAUDE.md`, `.claude/agents/spec_writer.md` y
+  `.claude/agents/ticket_writer.md` — las Fases Spec y Tickets y sus
+  plantillas ya están definidas ahí; `docs/specs.md` las cita, no las
+  repite.
 - Cualquier sección ya rellena en un `docs/*.md` parcial — completa los
   huecos, no reescribas lo que ya está.
 
@@ -76,22 +77,27 @@ lo que debería ser real), `## Verificación final antes de cerrar` → cita
 ### docs/specs.md
 
 No es una plantilla nueva — es el mapa de la Fase Spec que ya vive en
-`.claude/agents/orquestador.md` y `.claude/agents/spec_writer.md`. Escribe:
+`CLAUDE.md` y `.claude/agents/spec_writer.md`. Escribe:
 
 - Cuándo aplica (`sdd: true`) y quién decide — el humano, directamente,
   feature por feature junto al orquestador; nunca una heurística
   automática.
 - Quién escribe el spec (`spec_writer`) y dónde
-  (`specs/<name>/spec.md`) — cita la plantilla de `spec_writer.md`, no la
-  copies aquí: si cambia allá, esta copia quedaría desactualizada y
-  habría dos fuentes de verdad para el mismo contrato.
-- Las dos puertas humanas: aprobar el spec y aprobar el cierre
+  (`specs/<name>/spec.md`), y quién rompe la spec aprobada en tickets
+  (`ticket_writer`) y dónde (`specs/<name>/tickets/<NN>-<slug>.md`) — cita
+  las plantillas de `spec_writer.md`/`ticket_writer.md`, no las copies
+  aquí: si cambian allá, esta copia quedaría desactualizada y habría dos
+  fuentes de verdad para el mismo contrato.
+- Las tres puertas humanas: aprobar el spec, aprobar el desglose de
+  tickets (granularidad y `Blocked by`) y aprobar el cierre
   (`require_approved_spec_to_implement`,
-  `human_approval_required_to_close` en `feature_list.json`).
+  `human_approval_required_to_close` en `feature_list.json`; la de
+  tickets es gate en prosa en `CLAUDE.md`, no una `rule` de
+  `feature_list.json`).
 
-No documentes flujos que ya no existen (p. ej. F2/F3, `sdd_agent_author`,
-`reviewer_agent`) aunque aparezcan en commits antiguos — es protocolo
-retirado, no el actual.
+No documentes flujos que ya no existen (p. ej. F2/F3, `sdd_agent_author`)
+aunque aparezcan en commits antiguos — es protocolo retirado, no el
+actual. `reviewer_agent` sí es vigente: no lo listes como retirado.
 
 ## Cierre
 

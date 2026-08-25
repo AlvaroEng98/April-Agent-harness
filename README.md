@@ -7,8 +7,9 @@
 > CLI que scaffoldea un repositorio listo para **Spec-Driven Development (SDD)**
 > asistido por agentes de IA (Claude Code).
 
-`april init` deja en tu proyecto el arnés completo: subagentes definidos
-(orquestador, planner, spec author, developer, reviewer), el manifiesto de
+`april init` deja en tu proyecto el arnés completo: el rol de orquestador
+para el hilo principal (`CLAUDE.md`) y 5 subagentes definidos (planner, spec
+author, ticket writer, developer, reviewer), el manifiesto de
 features, los documentos de proceso y los scripts de verificación. A partir de
 ahí el flujo `pending → spec → aprobación humana → implementación → review → done`
 lo conduce el agente, no tú.
@@ -114,8 +115,8 @@ poblar el backlog.
 
 ```
 ├── .claude/
-│   ├── agents/            5 subagentes: orquestador, planner, spec author,
-│   │                      developer, reviewer
+│   ├── agents/            5 subagentes: planner, spec author,
+│   │                      ticket writer, developer, reviewer
 │   ├── hooks/             block-dangerous-git.sh — bloquea git peligroso
 │   └── settings.json      permisos + registro del hook
 ├── docs/
@@ -147,17 +148,22 @@ poblar el backlog.
        │
        ▼
 (sin fila) → [sdd_agent_author escribe spec.md] → [planner_agent crea la fila]
-           → spec_ready → ⏸ APROBACIÓN HUMANA
-           → in_progress → [agent_developer → reviewer_agent] → done
+           → spec_ready → ⏸ APROBACIÓN HUMANA DEL SPEC
+           → [ticket_writer rompe la spec en tickets] → ⏸ APROBACIÓN HUMANA DEL DESGLOSE
+           → in_progress → [agent_developer trabaja la frontera de tickets → reviewer_agent] → done
 ```
 
-Dos puertas que el agente no puede saltar: la **aprobación humana del spec**
-antes de escribir código, y la **aprobación humana del review** antes de marcar
-`done`. Las features con `"sdd": true` requieren `specs/<name>/spec.md`
-(plantilla `to-spec`: Historias de usuario, Decisiones de implementación/testing,
-`## Desafío`) antes de que exista una línea de código.
+Tres puertas que el agente no puede saltar: la **aprobación humana del
+spec** antes de escribir código, la **aprobación humana del desglose de
+tickets** (granularidad y `Blocked by`) antes de que existan los archivos
+de ticket, y la **aprobación humana del review** antes de marcar `done`.
+Las features con `"sdd": true` requieren `specs/<name>/spec.md` (plantilla
+`to-spec`: Historias de usuario, Decisiones de implementación/testing,
+`## Desafío`) antes de que exista una línea de código, y luego
+`specs/<name>/tickets/<NN>-<slug>.md` (plantilla `to-tickets`, publicación
+local) antes de implementar.
 
-Detalle completo en `.claude/agents/orquestador.md` del proyecto generado y en
+Detalle completo en `CLAUDE.md` del proyecto generado y en
 `docs/specs.md` de este repositorio.
 
 ---
