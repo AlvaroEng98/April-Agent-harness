@@ -38,6 +38,11 @@ pregunta lo que falta para poder escribir la spec.
    Cierre: cada sección de la plantilla está rellena — nada de
    "_pendiente_" — y el archivo existe en esa ruta.
 
+4. Agrega un bullet propio al final de `## Progress Log` en
+   `progress/current.md`: la feature para la que escribiste la spec y la
+   ruta `specs/<name>/spec.md`. Solo agregas — nunca reescribas ni borres
+   entradas de otro agente.
+
 Estado del proyecto es del orquestador, no tuyo — ver `AGENTS.md`. No
 marques la feature como `spec_ready`: eso lo hace el orquestador después
 de que el humano apruebe la spec.

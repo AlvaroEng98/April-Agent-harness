@@ -30,6 +30,10 @@ trabajo termina en un reporte, no en un cierre de feature — cerrar status a
 4. Reporta: archivos tocados (`file:line` cuando aporte), comandos
    corridos y su resultado, y qué puntos del `acceptance` quedan cubiertos
    vs pendientes.
+5. Agrega un bullet propio al final de `## Progress Log` en
+   `progress/current.md` con el mismo resumen del paso 4 (feature/ticket,
+   archivos tocados, comando y resultado). Solo agregas — nunca reescribas
+   ni borres entradas de otro agente.
 
 ## Límites duros
 

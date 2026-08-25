@@ -46,11 +46,30 @@ esta sección.
    ninguna, toma la siguiente `pending` por orden de `id`.
 4. **Ejecutar la fase que toque** (Grill, Spec, Tickets, Implementación o
    Revisión — ver abajo) según el estado de la feature elegida.
-5. **Cerrar sesión.** Actualiza `progress/current.md`, apéndice en
-   `progress/history.md` y `session-handoff.md` con lo hecho y lo que
-   sigue.
+5. **Cerrar sesión.** Consolida en `progress/history.md` las entradas de
+   `progress/current.md` que correspondan a features cerradas en la
+   sesión, y actualiza `session-handoff.md` con lo que sigue. Las entradas
+   de `progress/current.md` ya las escribió cada subagente al terminar
+   (ver Bitácora abajo) — este paso no las reconstruye desde cero, las
+   consolida.
 
 Cada paso termina cuando su criterio de cierre (abajo) se cumple — no antes.
+
+## Bitácora en progress/ — escribe cada subagente
+
+Cada subagente (`planner_agent`, `spec_writer`, `ticket_writer`,
+`agent_developer`, `reviewer_agent`) termina su tarea agregando **su
+propia entrada** a la sección `## Progress Log` de `progress/current.md`
+— un bullet corto: qué hizo, sobre qué feature/ticket, y el resultado
+(reporte, spec escrita, tickets publicados, veredicto). Lo hace el
+subagente mismo, como parte de completar su tarea — no tú reconstruyéndolo
+después de memoria. Un subagente nunca reescribe ni borra entradas de
+otro, solo agrega la suya al final.
+
+Esto no cambia quién decide el estado del proyecto: seguís siendo vos
+quien mueve `feature_list.json` (`pending`→`in_progress`→`done`), marca
+`Status` de tickets, y decide qué pasa a `progress/history.md` al cerrar
+sesión. La bitácora es registro, no autorización.
 
 ## Fase Grill — feature de bootstrap (sin código, `sdd: false`)
 

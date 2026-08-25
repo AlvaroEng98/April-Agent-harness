@@ -75,6 +75,11 @@ tracer-bullet, cada uno declarando qué otros tickets lo **bloquean**.
    dependencia, y ninguno quedó sin `Blocked by` explícito (aunque sea
    "None").
 
+6. Agrega un bullet propio al final de `## Progress Log` en
+   `progress/current.md`: la feature y cuántos tickets publicaste en
+   `specs/<name>/tickets/`. Solo agregas — nunca reescribas ni borres
+   entradas de otro agente.
+
 Estado del proyecto es del orquestador, no tuyo — igual que para
 `spec_writer` (ver `AGENTS.md`/`CLAUDE.md`). No toques `feature_list.json`,
 no cierres ni modifiques `specs/<name>/spec.md`, y no escribas el `Status`
