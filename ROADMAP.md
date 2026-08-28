@@ -5,13 +5,15 @@
 > No es un plan de réplica: gentle-ai marca el destino, el camino es el de
 > este repositorio.
 >
-> Fecha: 25/08/2026 · Estado: propuesta, backlog **no** escrito todavía.
+> Fecha: 25/08/2026, actualizado 26/08/2026 · Estado: propuesta, backlog
+> **no** escrito todavía.
 
 ---
 
 ## Procedencia de la evidencia
 
-La comparación se hizo contra `../gentle-ai-dist`, que contiene únicamente:
+La comparación original (25/08) se hizo contra `../gentle-ai-dist`, que
+contiene únicamente:
 
 - `README.md` y `docs/review-integration.md`
 - `contracts/review-integration/v1` (congelado) y `v2` — 22 schemas + 24
@@ -21,11 +23,18 @@ La comparación se hizo contra `../gentle-ai-dist`, que contiene únicamente:
 El vocabulario de SDD que se cita abajo (`sdd-status`, `nextRecommended`,
 `sdd-attempt`, presupuestos, gates de archive) se extrajo con `strings`
 sobre el binario: son prompts y mensajes embebidos, no código fuente
-leído. Los documentos de diseño de SDD (`docs/trigger-rules.md`,
-`docs/architecture/organic-rdd.md`, `openspec/`) **no** vienen en el dist.
+leído.
 
-Tratar lo citado como evidencia fuerte de *vocabulario y contrato*, y como
-inferencia razonable — no verificada — de *implementación*.
+**Actualización 26/08:** se localizó el código fuente completo en
+`/home/avalor/Proyectos/gentle-ai` (repo hermano, no el dist stripped).
+Todo lo citado abajo como inferido por `strings` queda **confirmado por
+código fuente real** (`AGENTS.md`, `openspec/config.yaml`, `contracts/`,
+`internal/reviewtransaction/`, `docs/architecture/organic-rdd.md`,
+`docs/architecture/guard-population.md`, `skills/`). Se agregan además tres
+mecanismos que el binario stripped no dejó ver (sección nueva más abajo).
+
+Tratar lo citado como evidencia fuerte de *vocabulario, contrato e
+implementación* — ya no solo inferencia sobre binario.
 
 ---
 
@@ -68,6 +77,14 @@ April todavía confía en la narración del agente.
 En gentle-ai el review es **informativo** y nunca bloquea el delivery. En
 April, `require_review_to_close` sí es puerta. **No se copia**: con un solo
 humano operando, la versión de April es más honesta.
+
+Confirmado con código fuente (26/08): gentle-ai además expone un kill
+switch (`gentle-ai review mode disable`) para apagar el ceremonial cuando
+no aplica — la ceremonia ahí es proporcional y desactivable, no un piso
+fijo. Es coherente con la divergencia ya tomada, no la contradice: April
+ya eligió el punto correcto del espectro para un solo operador; el matiz a
+llevar a E5 es que la *profundidad* del review, no si ocurre, puede variar
+según qué tocó el diff (ver mecanismo 8 arriba).
 
 ---
 
@@ -133,6 +150,34 @@ falta el árbitro que determine objetivamente en qué fase está.
    validator … denies admission, make zero writes."* Para archivar:
    `critical_findings must be zero`, más un gate contra checkboxes sin
    marcar. En April, `reviewer_agent` escribe su veredicto libremente.
+
+### Tres mecanismos adicionales, confirmados con código fuente (26/08)
+
+El dist stripped no dejó ver estos tres; el código fuente sí. Se integran
+en E5/E6 más abajo, no cambian el orden de etapas.
+
+6. **Ratchet de calidad progresiva.** gentle-ai congela el estado
+   imperfecto actual en un archivo baseline (`.deadcode-baseline.txt`,
+   `.refusal-ratchet-baseline.txt`, `.guard-population-baseline.txt`) y
+   solo falla el build si la métrica **crece** frente a esa línea base —
+   nunca exige llegar a cero de entrada. Justificación en el propio script:
+   exigir cero antes de habilitar el guard significa que el guard nunca se
+   habilita; congelar y prohibir crecimiento sí paga. Resuelve un problema
+   que April no tiene resuelto: cómo meter un gate de calidad en código ya
+   existente sin bloquear todo el desarrollo hasta limpiarlo entero.
+
+7. **Kill switch del ceremonial.** `gentle-ai review mode disable` apaga
+   todo el aparato de revisión transaccional cuando no aplica. Principio
+   explícito del propio autor: una herramienta que fuerza ceremonia para
+   cambiar una coma se desinstala en tres días. Refuerza — no contradice —
+   la "Divergencia deliberada" ya registrada abajo: la ceremonia debe ser
+   proporcional y desactivable, no un piso fijo.
+
+8. **Revisión disparada por qué cambió, no por tipo de feature.** En
+   gentle-ai, tocar áreas sensibles (ej. auth) exige más revisores/pasos
+   que tocar docs o config; no es "toda feature pasa por el mismo
+   reviewer". `reviewer_agent` en April hoy es parejo para toda feature
+   `sdd: true` sin distinguir qué tocó el diff.
 
 ---
 
@@ -257,16 +302,29 @@ mientras revisaba, el receipt no se admite.
 Elimina el fallo silencioso "el revisor revisó otra cosa". Es la idea
 central del RDD de gentle-ai, en ~80 líneas de Go en lugar de 85k.
 
+**Extensión (26/08):** el mismo comando puede llevar el mecanismo 8 —
+`reviewer_agent` recibe, junto al `subject_hash`, qué paquetes/rutas tocó
+el diff, y ajusta profundidad (cuántas pasadas, qué exige explícitamente)
+según si tocó áreas marcadas como sensibles en `docs/conventions.md` (a
+definir en E0). No es una etapa nueva: es un parámetro más del veredicto
+que E5 ya construye.
+
 **Recomendación:** `sdd: true`.
 
 ---
 
-### E6 — `april doctor` + snapshot en `init`
+### E6 — `april doctor` + snapshot en `init` + ratchet de deuda
 
 - `april doctor`: read-only — manifiesto contra disco, drift, agentes
   presentes, `status` sano.
 - `april init`: backup antes de `applyPlan`. El manifiesto ya existe; falta
   la red de seguridad.
+- **Ratchet de calidad progresiva (26/08, mecanismo 6):** si este repo
+  acumula deuda medible (código muerto, TODOs sin feature asociada — ver
+  C3 en `CHECKPOINTS.md`), `april doctor` congela un baseline y falla solo
+  si la métrica crece frente a él. No exige limpiar la deuda existente
+  para empezar a exigir que no crezca — el mismo patrón que evitó que
+  gentle-ai bloqueara su propio desarrollo al introducir el guard.
 
 Higiene. Va al final a propósito.
 
@@ -305,4 +363,19 @@ agente ya no puede mentir. Es el camino que tomó gentle-ai.
 caminos, así que la decisión se toma recién en E3, con el árbitro ya
 funcionando y sin haber apostado nada.
 
-**Estado: sin decidir.** Hasta que se resuelva, el backlog no se escribe.
+**Estado: decidido (26/08/2026) — B, llegando por A.** El humano confirmó
+la recomendación. Efecto concreto en el plan:
+
+- E1 (`april status`) y E2 (`CLAUDE.md` enruta por él) se construyen y
+  operan en modo **advisory**: el binario calcula y opina, pero
+  `feature_list.json` se sigue editando a mano mientras se valida que el
+  modelo de fases (`phase`, `nextRecommended`, `blockedReasons`) es
+  correcto en uso real.
+- Recién al llegar a E3 (`april feature set-status`), y solo si E1/E2
+  demostraron ser confiables en la práctica, la escritura de
+  `feature_list.json` pasa a ser exclusiva de ese comando — editarlo a
+  mano queda fuera de protocolo desde ese punto en adelante.
+- Esto no cambia el orden ni el contenido de E0-E6 ya descrito arriba;
+  solo confirma que E3 es el punto de no retorno, no E1.
+
+Con esto resuelto, el backlog puede escribirse.

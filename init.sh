@@ -59,43 +59,42 @@ done
 echo ""
 echo "── 2. Validando feature_list.json y specs ─────────────"
 
-python3 - <<'PY'
-import json, os, sys
-try:
-    data = json.load(open("feature_list.json"))
-    valid = {"pending", "spec_ready", "in_progress", "done", "blocked"}
-    in_progress = [f for f in data["features"] if f["status"] == "in_progress"]
-    if len(in_progress) > 1:
-        print(f"[FAIL]  Hay {len(in_progress)} features en in_progress (máximo 1)")
-        sys.exit(1)
-    requires_spec = {"spec_ready", "in_progress", "done"}
-    spec_errors = []
-    for f in data["features"]:
-        if f["status"] not in valid:
-            print(f"[FAIL]  Estado inválido en feature {f['id']}: {f['status']}")
-            sys.exit(1)
-        if f.get("sdd") and f["status"] in requires_spec:
-            spec_dir = os.path.join("specs", f["name"])
-            spec_file = os.path.join(spec_dir, "spec.md")
-            if not os.path.isfile(spec_file):
-                spec_errors.append(
-                    f"feature {f['id']} ({f['name']}) en {f['status']} "
-                    f"sin {spec_file}"
-                )
-    if spec_errors:
-        for e in spec_errors:
-            print(f"[FAIL]  {e}")
-        sys.exit(1)
-    print(f"[OK]    feature_list.json válido ({len(data['features'])} features)")
-    print(f"[OK]    Specs presentes para features sdd con estado no-pending")
-except SystemExit:
-    raise
-except Exception as e:
-    print(f"[FAIL]  feature_list.json o specs inválidos: {e}")
-    sys.exit(1)
-PY
+# Resuelve el binario april con esta prioridad: (1) april en el PATH — caso
+# normal de un proyecto scaffoldeado, que no tiene el código fuente de
+# April, solo el binario instalado; (2) si no está en el PATH pero hay
+# go.mod y main.go en el directorio actual (este mismo repo dogfoodeando su
+# propio arnés, sin binario compilado todavía), se compila on-the-fly a un
+# binario temporal. Si ninguna se cumple, falla explícitamente en vez de
+# fallar de forma confusa más adelante.
+APRIL_BIN=""
+APRIL_TMP_BIN=""
+if command -v april >/dev/null 2>&1; then
+  APRIL_BIN="$(command -v april)"
+elif [ -f "go.mod" ] && [ -f "main.go" ]; then
+  APRIL_TMP_BIN="$(mktemp)"
+  if go build -o "$APRIL_TMP_BIN" .; then
+    APRIL_BIN="$APRIL_TMP_BIN"
+  else
+    fail "No se pudo compilar april on-the-fly (go build) para correr 'status'."
+    EXIT_CODE=1
+  fi
+else
+  fail "No se pudo resolver el comando 'status': ni 'april' está en el PATH ni hay go.mod/main.go en el directorio actual."
+  EXIT_CODE=1
+fi
 
-if [ $? -ne 0 ]; then EXIT_CODE=1; fi
+if [ -n "$APRIL_BIN" ]; then
+  "$APRIL_BIN" status --json
+  status_exit=$?
+  if [ $status_exit -eq 0 ]; then
+    ok "april status --json sin blockedReasons"
+  else
+    fail "april status --json reportó blockedReasons (exit $status_exit)"
+    EXIT_CODE=1
+  fi
+fi
+
+[ -n "$APRIL_TMP_BIN" ] && rm -f "$APRIL_TMP_BIN"
 
 echo ""
 echo "── 3. Verificando agentes ─────────────────────────────"

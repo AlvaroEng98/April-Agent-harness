@@ -962,3 +962,25 @@ func TestManifestJsonEmbebidoNuncaSePropaga(t *testing.T) {
 		t.Errorf("el contenido de .claude/manifest.json embebido en la plantilla no debería colarse en el manifiesto real del destino")
 	}
 }
+
+// TestInitShInvocaAprilStatusSinHeredocPython es un guardarraíl barato (no
+// reemplaza la revisión humana del diff de init.sh, área sensible — ver
+// docs/conventions.md) contra que alguien reintroduzca el heredoc
+// `python3 - <<'PY' ... PY` de validación: lee el init.sh real del repo (no
+// el embebido, el archivo en disco que ejecuta el humano/agente) y verifica
+// por contenido que la delegación a `april status` sigue ahí (feature
+// april_status_arbiter, ticket 03).
+func TestInitShInvocaAprilStatusSinHeredocPython(t *testing.T) {
+	content, err := os.ReadFile("init.sh")
+	if err != nil {
+		t.Fatalf("no se pudo leer init.sh: %v", err)
+	}
+	text := string(content)
+
+	if strings.Contains(text, "<<'PY'") {
+		t.Errorf("init.sh todavía contiene el heredoc python3 - <<'PY' de validación")
+	}
+	if !strings.Contains(text, "status") {
+		t.Errorf("init.sh ya no invoca el comando 'status'")
+	}
+}

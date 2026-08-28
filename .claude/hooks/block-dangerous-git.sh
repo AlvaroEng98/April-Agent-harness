@@ -13,6 +13,7 @@ DANGEROUS_PATTERNS=(
   "git restore \."
   "push --force"
   "reset --hard"
+  "git commit"
 )
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do

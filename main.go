@@ -22,6 +22,14 @@ func main() {
 	switch os.Args[1] {
 	case "init":
 		cmdInit()
+	case "status":
+		cmdStatus()
+	case "feature":
+		cmdFeature()
+	case "verify":
+		cmdVerify()
+	case "review":
+		cmdReview()
 	case "update":
 		cmdUpdate()
 	case "version", "--version", "-v":
@@ -39,10 +47,15 @@ func printUsage() {
 	fmt.Println(`Usage: april <command>
 
 Commands:
-  init [directory]    Scaffold project structure
-  update [version]    Update april to the latest (or given) release
-  version             Print version
-  help                Show this help`)
+  init [directory]                                   Scaffold project structure
+  status [id] [--json]                                Show computed phase/nextRecommended/blockedReasons
+  feature set-status <id> <estado> [--verdict <valor>] Única vía válida de escritura de feature_list.json
+  verify record --feature <id> -- <comando>           Corre <comando>, anexa evidencia a .claude/verify-ledger.jsonl
+  review start --feature <id> [--json]                Ejecuta git write-tree, imprime subject_hash; con --json, agrega touchedPaths/sensitiveAreasTouched/extraReviewRequired
+  review record --feature <id> --verdict <valor> [--subject-hash <hash>]  Registra el veredicto de reviewer_agent en .claude/verify-ledger.jsonl; con --subject-hash, rechaza si el árbol cambió
+  update [version]                                    Update april to the latest (or given) release
+  version                                             Print version
+  help                                                Show this help`)
 }
 
 func printBanner() {

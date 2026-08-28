@@ -44,8 +44,15 @@ esta sección.
 3. **Elegir feature.** Regla `one_feature_at_a_time`: si ya hay una en
    `in_progress`, sigues con esa — no abras otra en paralelo. Si no hay
    ninguna, toma la siguiente `pending` por orden de `id`.
-4. **Ejecutar la fase que toque** (Grill, Spec, Tickets, Implementación o
-   Revisión — ver abajo) según el estado de la feature elegida.
+4. **Ejecutar la fase que toque.** Corre `april status --json` (resuelve
+   el binario como hace `init.sh`: PATH primero, `go build` on-the-fly si
+   hay `go.mod`/`main.go` locales). Enruta **solo** por `nextRecommended`
+   y `blockedReasons` — nunca infieras la fase leyendo texto/prosa de
+   `progress/current.md`, `session-handoff.md` ni tu propia memoria de la
+   conversación. Si `blockedReasons` no está vacío, repórtalos al humano y
+   detente sin avanzar de fase. Con `blockedReasons` vacío, `nextRecommended`
+   indica la única acción legal (Grill, Spec, Tickets, Implementación o
+   Revisión — ver abajo para el detalle de cada una).
 5. **Cerrar sesión.** Consolida en `progress/history.md` las entradas de
    `progress/current.md` que correspondan a features cerradas en la
    sesión, y actualiza `session-handoff.md` con lo que sigue. Las entradas
