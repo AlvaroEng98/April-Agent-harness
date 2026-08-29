@@ -4,42 +4,37 @@
 
 - Goal: implementar el backlog derivado de `ROADMAP.md` (E1-E6, "April vs
   gentle-ai") — el árbitro `april status`, las vías de escritura
-  autoritativas, y el ledger de evidencia de tests/revisión.
-- Current status: features 1-8 y 12 cerradas `done`. Frontera: feature 9
-  (`doctor_readonly_check`), `sdd: false`, `status: pending` — `april
-  status --json` recomienda implementar frontera de tickets (vacía para
-  esta feature, es `sdd: false` sin tickets).
-- Branch / commit: `main`, cambios sin commitear (pendiente de que el
-  humano decida cuándo commitear — no se hizo ningún commit esta sesión).
+  autoritativas, el ledger de evidencia de tests/revisión, y las
+  extensiones de `april doctor`.
+- Current status: **backlog completo — features 1-12, todas `done`**.
+  `april status --json` reporta `phase: closed`, `nextRecommended: "nada —
+  no hay features pendientes"`.
+- Branch / commit: `main`, cambios sin commitear (el humano pidió
+  explícitamente no commitear al cierre de esta sesión — lo maneja él
+  mismo en el siguiente paso).
 
-## Completed This Session
+## Completed This Session (continuación 28/08/2026)
 
-- [x] Feature 1 `bootstrap_project` — Fase Grill completa (`docs/*.md`,
-      `progress/project-definition.md`), backlog de 10 features aprobado.
-- [x] Feature 2 `april_status_arbiter` — `april status --json` (árbitro
-      advisory: `phase`/`nextRecommended`/`blockedReasons`/`frontier`).
-- [x] Feature 3 `claude_md_routes_by_status` — `CLAUDE.md` enruta por
-      `april status`, no por inferencia de prosa.
-- [x] Feature 4 `set_status_authoritative_write` — `april feature
-      set-status`, única vía de escritura de `feature_list.json` desde su
-      cierre en adelante.
-- [x] Feature 5 `verify_record_ledger` — `april verify record`, ledger
-      append-only de evidencia de tests (`.claude/verify-ledger.jsonl`).
-- [x] Feature 6 `review_verdict_recorded` — `april review record`,
-      veredicto de `reviewer_agent` registrado en el mismo ledger
-      (`kind: "review"`), no narrado.
-- [x] Feature 7 `review_frozen_candidate` — `april review start` +
-      `review record --subject-hash`, candidato congelado vía `git
-      write-tree` sobre índice temporal (opt-in, no reemplaza el
-      mecanismo de la feature 6).
-- [x] Configuración: `git commit` agregado a
-      `.claude/hooks/block-dangerous-git.sh` (a raíz de un incidente en
-      otro proyecto).
-- [x] Incidente: `progress/current.md` perdió ~600 líneas de historial
-      durante la feature 6 (agentes con solo `Write`), reconstruido desde
-      contexto de conversación.
+- [x] Feature 8 `review_depth_by_diff_sensitivity` — `review start
+      --json` reporta rutas tocadas y áreas sensibles.
+- [x] Feature 12 `tree_hash_respects_gitignore` — `hashTree` respeta
+      `.gitignore`, corrige la auto-invalidación de receipts por
+      binarios regenerados.
+- [x] Feature 9 `doctor_readonly_check` — `april doctor`, chequeo
+      read-only de salud (drift de manifiesto + agentes).
+      `APPROVED_WITH_OBJECTION` (objeción documentada, no corregida a
+      pedido del humano).
+- [x] Feature 10 `init_backup_before_apply` — backup automático antes de
+      `applyPlan`, rollback manual. `APPROVED` (objeción de cobertura de
+      la 1ra ronda cerrada antes del cierre).
+- [x] Feature 11 `doctor_debt_ratchet` — ratchet de deuda (TODOs sin
+      feature asociada) sobre `april doctor`. `APPROVED` (dos objeciones
+      de la 1ra ronda cerradas antes del cierre).
 - [x] Consolidación de sesión: `progress/history.md` actualizado,
       `progress/current.md` reseteado para la próxima sesión.
+
+Ver `progress/history.md` (sección "2026-08-28 — Sesión continuación") y
+la sección anterior para el detalle completo de features 1-7.
 
 ## Verification Evidence
 
@@ -47,102 +42,88 @@
 |---|---|---|---|
 | Build | `go build ./...` | verde | corrido repetidamente por cada `agent_developer`/`reviewer_agent` |
 | Vet | `go vet ./...` | verde | idem |
-| Tests | `go test ./... -v` | verde, 180 tests | acumulado features 2-8 y 12 (165→180) |
-| Init harness | `./init.sh` | exit 0 | `blockedReasons: []` al cierre de cada feature, incluido 12 |
-| Ledger | `.claude/verify-ledger.jsonl` | receipts vigentes | `kind:test` y `kind:review` para features 5/6/7/8/12, treeHash `edf8d225...` para 12 verifica `no_test_evidence` estable tras `go build` |
-| Manual | `april feature set-status`, `april verify record`, `april review record`/`review start` corridos en vivo contra este mismo repo | comportamiento correcto | dogfooding real, incluido `hashTree` respeta `.gitignore` (`HarnessInit` no invalida ledger) |
+| Tests | `go test ./... -v` | verde, 207 tests | acumulado features 1-12 (180→207 esta continuación) |
+| Init harness | `./init.sh` | exit 0 | `blockedReasons: []` al cierre de cada feature |
+| Ledger | `.claude/verify-ledger.jsonl` | receipts vigentes | `kind:test`/`kind:review` para todas las features 1-12 |
+| Manual | `april feature set-status`, `april verify record`, `april review record`, `april doctor` corridos en vivo contra este mismo repo | comportamiento correcto | dogfooding real |
 
-## Files Changed
+## Files Changed (esta continuación, sobre lo ya descrito en `progress/history.md`)
 
-- `status.go`/`status_test.go` (nuevo, feature 2, extendido en 5/6) —
-  árbitro de fases, lectura del ledger.
-- `set_status.go`/`set_status_test.go` (nuevo, feature 4) — escritura
-  autoritativa de `feature_list.json`, escritura atómica.
-- `verify.go`/`verify_test.go` (nuevo, feature 5, extendido en 6/7/12) —
-  `hashTree`, ledger append-only, `verify record`, parser `.gitignore` (`parseGitignore`/`gitignoreMatches`/`loadGitignorePatterns`) + `hashTree` wiring.
-- `review.go`/`review_test.go` (nuevo, feature 6, extendido en 7/8/12) —
-  `review record`/`review start`, candidato congelado de git, `parseSensitiveAreas`/`computeTouchedPaths`/`matchSensitiveAreas` (feature 8), `fixedTreeExclusions` compartida (feature 12).
-- `main.go` — nuevos casos `status`/`feature`/`verify`/`review` en el
-  switch, `printUsage()` actualizado (`review start --feature <id> [--json]`).
-- `init.sh` — heredoc Python reemplazado por invocación a `april status`.
-- `CLAUDE.md` — paso 4 del ciclo por sesión reescrito (feature 3).
-- `.claude/hooks/block-dangerous-git.sh` — `git commit` agregado a los
-  patrones bloqueados.
-- `feature_list.json` — features 1-8 y 12 → `done` (4-8 y 12 escritas
-  exclusivamente vía `april feature set-status`, no edición manual).
-- `specs/april_status_arbiter/`, `specs/verify_record_ledger/`,
-  `specs/review_verdict_recorded/`, `specs/review_frozen_candidate/`,
-  `specs/review_depth_by_diff_sensitivity/`, `specs/tree_hash_respects_gitignore/` —
-  specs + tickets de las features `sdd: true`.
+- `review.go`/`review_test.go` — feature 8 (`--json` en `review start`,
+  `matchSensitiveAreas`/`computeTouchedPaths`), feature 12
+  (`fixedTreeExclusions` compartida).
+- `verify.go`/`verify_test.go` — feature 12 (`parseGitignore`/
+  `gitignoreMatches`/`loadGitignorePatterns`, wiring en `hashTree`).
+- `doctor.go`/`doctor_test.go` (nuevo, feature 9, extendido en feature 11)
+  — chequeo read-only + ratchet de deuda (`--freeze-baseline`).
+- `scaffold.go`/`scaffold_test.go` — feature 10 (`backupCandidates`/
+  `backupBeforeApply`, llamado desde `applyPlan`).
+- `.gitignore` — feature 11 (excluye `/.claude/doctor-baseline.json`).
+- `main.go` — nuevos casos `doctor`, flags `--freeze-baseline`,
+  `printUsage()` actualizado.
+- `feature_list.json` — features 8-12 → `done` (todas vía `april feature
+  set-status`).
+- `specs/review_depth_by_diff_sensitivity/`,
+  `specs/tree_hash_respects_gitignore/` — specs + tickets (features
+  `sdd: true` de esta continuación).
 - `progress/current.md`, `progress/history.md` — bitácora y
   consolidación de esta sesión.
-- `.claude/verify-ledger.jsonl` — ledger real con receipts de tests y
-  veredictos de revisión (features 5-8, 12).
+- `.claude/verify-ledger.jsonl` — ledger real con receipts nuevos
+  (features 8-12).
 
 ## Decisions Made
 
-- "B llegando por A" (26/08/2026, `ROADMAP.md`): `april status`/`CLAUDE.md`
-  operan advisory hasta confirmación humana explícita de uso real
-  confiable (dada 27/08/2026, tras el ciclo completo de la feature 2) —
-  recién ahí se activó `set-status` como escritura exclusiva.
-- Mecanismo interino de veredicto en `set_status.go` (feature 4, flag
-  `--verdict`) **coexiste deliberadamente** con el ledger real (features
-  5/6) — no se unificaron; decisión explícita, documentada en ambas specs.
-- Exclusiones fijas para hash de árbol (`.git/`, el ledger, `progress/`)
-  en `hashTree` (feature 5) y replicadas en `computeSubjectHash` (feature
-  7, vía índice temporal de git) — no configurables.
-  `subject_hash` de la feature 7 queda **opt-in**, no reemplaza a
-  `treeHash`/`no_review_verdict`.
-- `set_status.go` nunca consulta el ledger (features 5/6/7 lo dejan
-  fuera de alcance explícitamente) — el gate de cierre sigue siendo
-  verificación humana leyendo `april status --json`, no un bloqueo
-  automático de `set-status done`.
-- Protocolo de secuencia aprendido (feature 5 y reconfirmado en 6/7): el
-  receipt final de una feature (`verify record`/`review record`) se
-  graba *después* de que el orquestador termine de tocar `specs/`
-  (marcar tickets `done`), nunca antes — si no, se auto-invalida.
-- Features `sdd: true` permanecen `pending` durante la Fase Spec (no
-  `in_progress`); pasan a `spec_ready` recién cuando el humano aprueba la
-  spec, vía `april feature set-status`.
-- `git commit` bloqueado por hook en este repo (además de los patrones
-  destructivos ya existentes) — decisión del humano tras discutir un
-  incidente en otro proyecto.
+- Todas las decisiones de fondo de la sesión anterior (advisory → única
+  vía de escritura, exclusiones fijas de hash, veredicto interino en
+  `set_status.go` coexistiendo con el ledger real) siguen vigentes — ver
+  `progress/history.md`.
+- `hashTree` y `computeSubjectHash` comparten `fixedTreeExclusions`
+  (feature 12) pero permanecen mecanismos separados a propósito — uno
+  agnóstico de `fs.FS`/sin git, el otro delegando en `git` real. No se
+  unificaron.
+- `.claude/doctor-baseline.json` (feature 11) se excluye del hash de
+  árbol vía `.gitignore`, no vía código — decisión explícita porque, a
+  diferencia del ledger (que se reescribe en cada `record`,
+  autoinvalidándose), este archivo solo cambia por una acción explícita y
+  rara (`--freeze-baseline`).
+- El contrato read-only de `april doctor` (feature 9) se preserva en la
+  feature 11: la única escritura vive detrás del flag explícito
+  `--freeze-baseline`, que además rechaza sobreescribir un baseline
+  existente.
+- Objeción de la feature 9 (chequeo de agentes con `strings.Contains("#")`
+  en vez de `grep -q "^#"` anclado) cerrada por decisión humana explícita
+  — se documenta, no se corrige, por ser edge-case improbable.
+- Ambas objeciones de las features 10 y 11 (huecos de cobertura de test)
+  sí se pidieron cerrar antes de aprobar — patrón distinto al de la
+  feature 9, decidido caso por caso por el humano, no automático.
 
 ## Blockers / Risks
 
-- Ninguna feature bloqueada. La 8 ya está cerrada; la 12 (corrección
-  transversal de `hashTree`/`computeSubjectHash`) también. Frontera
-  actual: 9 (`doctor_readonly_check`), 10 (`init_backup_before_apply`),
-  11 (`doctor_debt_ratchet`), todas `pending` sin bloqueos.
-- `hashTree` respeta `.gitignore` desde la feature 12 — el riesgo previo
-  (binario `HarnessInit` invalidando receipts tras `go build ./...`)
-  queda corregido y verificado (tests en `fstest.MapFS` + integración con
-  `recordVerify`/`computeStatus` en ambos órdenes + dogfooding en vivo).
-- `progress/current.md` se reconstruyó desde contexto de conversación
-  tras perder ~600 líneas (ver `progress/history.md`, entrada de
-  incidente, feature 6). El contenido es fiel en sustancia pero no
-  byte-exacto al original. Vigilar que `spec_writer`/`ticket_writer`
-  (solo `Write`, sin `Edit`) no vuelvan a perder contenido en tareas
-  largas.
-- Nada commiteado todavía — el árbol de trabajo tiene todos los cambios
-  de las features 1-8 y 12 sin `git commit` (bloqueado además por el hook
-  nuevo salvo que el humano lo pida explícitamente).
+- Ninguna feature bloqueada ni pendiente — backlog completo.
+- Nada commiteado — el árbol de trabajo tiene todos los cambios de las
+  features 1-12 sin `git commit` (bloqueado además por el hook existente
+  salvo pedido explícito). El humano pidió expresamente NO commitear al
+  cierre de esta sesión — lo maneja él mismo en el siguiente paso, no
+  tocar `git commit`/`git add` de forma proactiva.
+- `april review start` puede reportar `extraReviewRequired: true` por
+  arrastre de diffs de features ya cerradas y sin commitear (ej. la
+  10 tocando `scaffold.go`, área sensible) — ruido informativo, no
+  bloqueante, desaparece en cuanto se comitee.
 
 ## Next Session Startup
 
 1. Leer `AGENTS.md`/`CLAUDE.md`.
 2. Correr `./init.sh` — debe estar en verde (`blockedReasons: []`).
-3. Correr `april status --json` (o `go build -o <tmp> . && <tmp> status
-   --json`) — debe recomendar implementar `feature 9` (`doctor_readonly_check`).
-4. Leer este handoff y `progress/history.md` (entrada de esta sesión) si
-   hace falta contexto de las decisiones de diseño ya tomadas.
+3. Correr `april status --json` — debe reportar `phase: closed`,
+   `nextRecommended: "nada — no hay features pendientes"`.
+4. Preguntar al humano si el trabajo ya se commiteó y si hay backlog
+   nuevo que sumar (vía `planner_agent`) — no hay features `pending` que
+   retomar automáticamente.
 
 ## Recommended Next Step
 
-- Continuar con la feature 9 (`doctor_readonly_check`): `sdd: false`,
-  implementación directa vía `agent_developer` (read-only, sin spec).
-  Features 10 y 11 quedan en `pending` y pueden paralelizarse según
-  `ROADMAP.md` E6.
-- Considerar si conviene commitear el estado actual (features 1-8 y 12
-  completas, sin commits) antes de seguir sumando trabajo — el humano no
-  lo ha pedido todavía.
+- El humano decide cuándo y cómo commitear el trabajo acumulado
+  (features 1-12, sin commits).
+- Si aparece nuevo trabajo, lanzar `planner_agent` con el objetivo
+  acordado para sumar features al backlog — el ciclo de Grill/Spec/
+  Tickets/Implementación/Revisión de `CLAUDE.md` sigue aplicando igual.

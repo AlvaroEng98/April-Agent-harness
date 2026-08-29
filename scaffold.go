@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Se embeben el tooling (idéntico al que dogfoodea este repo) y el directorio
@@ -417,11 +418,117 @@ func planScaffoldFromFS(absTarget string, tmplFS fs.FS) (scaffoldPlan, error) {
 	return plan, nil
 }
 
-// applyPlan ejecuta un scaffoldPlan ya decidido: solo hace las llamadas
+// backupCandidates enumera, a partir de un scaffoldPlan ya decidido (sin
+// tocar disco), las rutas relativas que applyPlan está por sobrescribir o
+// borrar: los archivos con acción actionCreate/actionUpdate (applyPlan les
+// hace os.WriteFile — incluido actionCreate, que puede pisar un archivo que
+// ya existía en disco si el template lo declara nuevo por no estar en el
+// manifiesto anterior) más los que plan.filesToDelete marca para os.Remove.
+// Es pura: solo lee el struct plan ya construido en memoria, nunca el disco
+// — la existencia real en disco (si de verdad hay algo que perder) la
+// resuelve el wrapper de I/O backupBeforeApply.
+func backupCandidates(plan scaffoldPlan) []string {
+	var paths []string
+	for _, fw := range plan.files {
+		switch fw.action {
+		case actionCreate, actionUpdate:
+			paths = append(paths, fw.relPath)
+		}
+	}
+	for _, del := range plan.filesToDelete {
+		paths = append(paths, del.relPath)
+	}
+	return paths
+}
+
+// backupRootDir es la carpeta donde viven todos los backups de un destino:
+// junto al manifiesto, dentro de .claude/, para quedar localizable y fuera
+// del árbol que gestiona el manifiesto (no forma parte de ninguna
+// plantilla, así que planScaffoldFromFS nunca la toca ni la borra).
+func backupRootDir(absTarget string) string {
+	return filepath.Join(absTarget, ".claude", "backups")
+}
+
+// uniqueBackupDir crea y devuelve un directorio de backup nuevo bajo root,
+// nombrado con el timestamp actual (segundo); si ya existe uno con ese
+// nombre (dos corridas en el mismo segundo), agrega un sufijo -2, -3...
+func uniqueBackupDir(root string) (string, error) {
+	base := time.Now().Format("20060102-150405")
+	candidate := filepath.Join(root, base)
+	for i := 2; ; i++ {
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			break
+		}
+		candidate = filepath.Join(root, fmt.Sprintf("%s-%d", base, i))
+	}
+	if err := os.MkdirAll(candidate, 0755); err != nil {
+		return "", err
+	}
+	return candidate, nil
+}
+
+// backupBeforeApply copia, a un directorio nuevo bajo .claude/backups/<timestamp>/
+// dentro de plan.absTarget, todo archivo que YA existe en disco y que
+// applyPlan está por sobrescribir o borrar (backupCandidates). Se corre
+// ANTES de que applyPlan toque un solo archivo del destino: si applyPlan
+// falla a mitad de camino, el backup ya quedó escrito completo e intacto —
+// no hay rollback automático, restaurar es un paso manual (copiar de vuelta
+// los archivos desde el directorio de backup impreso en la salida).
+// Devuelve "" (sin error) si no hay ningún archivo existente que respaldar
+// (ej. scaffold inicial sobre un directorio vacío: todo es actionCreate
+// sobre rutas que aún no existen, no hay nada que perder).
+func backupBeforeApply(plan scaffoldPlan) (string, error) {
+	var existing []string
+	for _, rel := range backupCandidates(plan) {
+		if _, err := os.Stat(filepath.Join(plan.absTarget, filepath.FromSlash(rel))); err == nil {
+			existing = append(existing, rel)
+		}
+	}
+	if len(existing) == 0 {
+		return "", nil
+	}
+
+	backupDir, err := uniqueBackupDir(backupRootDir(plan.absTarget))
+	if err != nil {
+		return "", fmt.Errorf("creando directorio de backup: %w", err)
+	}
+
+	for _, rel := range existing {
+		src := filepath.Join(plan.absTarget, filepath.FromSlash(rel))
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return "", fmt.Errorf("backup: leyendo %s: %w", rel, err)
+		}
+		info, err := os.Stat(src)
+		if err != nil {
+			return "", fmt.Errorf("backup: stat %s: %w", rel, err)
+		}
+		dst := filepath.Join(backupDir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return "", fmt.Errorf("backup: creando directorio para %s: %w", rel, err)
+		}
+		if err := os.WriteFile(dst, data, info.Mode()); err != nil {
+			return "", fmt.Errorf("backup: escribiendo %s: %w", rel, err)
+		}
+	}
+
+	return backupDir, nil
+}
+
+// applyPlan ejecuta un scaffoldPlan ya decidido: primero respalda (ver
+// backupBeforeApply) todo lo que va a tocar, y luego hace las llamadas
 // os.WriteFile/os.Remove/os.MkdirAll, imprime los avisos correspondientes a
 // cada acción y persiste el manifiesto resultante. No toma ninguna decisión
 // de contenido: eso ya lo resolvió planScaffoldFromFS.
 func applyPlan(plan scaffoldPlan) error {
+	backupDir, err := backupBeforeApply(plan)
+	if err != nil {
+		return fmt.Errorf("generando backup antes de aplicar: %w", err)
+	}
+	if backupDir != "" {
+		fmt.Printf("  Backup de archivos existentes en %s\n", backupDir)
+	}
+
 	if plan.createTargetDir {
 		if err := os.MkdirAll(plan.absTarget, 0755); err != nil {
 			return err

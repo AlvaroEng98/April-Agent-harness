@@ -47,6 +47,13 @@ RECAP_*.md
 # scaffoldeados (dogfooding): nunca debe versionarse ni embeberse.
 /.claude/manifest.json
 
+# .claude/doctor-baseline.json (feature 11, doctor_debt_ratchet) es el
+# baseline de deuda congelado por `april doctor --freeze-baseline` — estado
+# de trabajo de ESTE repo/máquina, no producto. Estar en .gitignore además
+# lo excluye automáticamente de hashTree/computeSubjectHash (feature 12,
+# tree_hash_respects_gitignore) sin tocar isExcludedFromTreeHash.
+/.claude/doctor-baseline.json
+
 # Legacy: versiones previas de este mismo Grill dejaban los .md sueltos en
 # la raíz en lugar de docs/. Ancladas con "/" por la misma razón de arriba.
 /architecture.md

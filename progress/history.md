@@ -2,6 +2,83 @@
 
 <!-- Append-only log. Most recent at the top. -->
 
+## 2026-08-28 — Sesión continuación (features 8-12, todas `done`, backlog cerrado)
+
+Continuación directa de la sesión anterior. Cerró las 5 features restantes
+del backlog derivado de `ROADMAP.md` — con esto, `feature_list.json` queda
+completo (1-12, todas `done`) y `april status --json` reporta `phase:
+closed`, `nextRecommended: "nada — no hay features pendientes"`.
+
+### Feature 8 `review_depth_by_diff_sensitivity` (done, 28/08/2026)
+
+`review start` gana flag `--json` opcional: reporta `touchedPaths`/
+`sensitiveAreasTouched`/`extraReviewRequired`, reusando el `subject_hash`
+de la feature 7 (`git diff --name-only` contra el árbol base). Sin
+`--json`, comportamiento byte-a-byte idéntico a la feature 7. 3 tickets
+(parseo de "Áreas sensibles" de `docs/conventions.md` / `computeTouchedPaths`
+vía diff de árbol congelado / ensamblaje `--json`). Revisión: `APPROVED` en
+la primera pasada. Hallazgo de proceso no bloqueante: `go build ./...`
+reescribe el binario `HarnessInit` en la raíz del repo, invalidando el
+ledger si se corre después de `verify record` — resuelto después por la
+feature 12. 165 tests.
+
+### Feature 12 `tree_hash_respects_gitignore` (done, 28/08/2026)
+
+Corrige el hallazgo de la feature 8: `hashTree` ahora respeta `.gitignore`
+(parser puro `parseGitignore`/`gitignoreMatches`/`loadGitignorePatterns` en
+`verify.go`), evitando que un `go build ./...` que regenera binarios
+gitignoreados invalide receipts vigentes. `computeSubjectHash` ya respetaba
+`.gitignore` nativamente (vía `git add -A`) — se confirmó con un test de
+regresión y se compartió la lista fija de exclusiones (`fixedTreeExclusions`)
+entre ambos mecanismos. Se descartó explícitamente unificar `hashTree`/
+`computeSubjectHash` en un solo mecanismo. 3 tickets. Revisión: `APPROVED`
+en la primera pasada, con prueba de fuego en vivo (`go build ./...` repetido
+no invalida el ledger). 180 tests.
+
+### Feature 9 `doctor_readonly_check` (done, 28/08/2026)
+
+`april doctor`: compara `.claude/manifest.json` contra disco (drift
+`missing`/`modified`), lista agentes en `.claude/agents/`, consulta
+`computeStatus` — 100% read-only. Revisión: `APPROVED_WITH_OBJECTION` — el
+chequeo de agentes (`strings.Contains("#")`) diverge de `init.sh`
+(`grep -q "^#"`, anclado a inicio de línea); el humano decidió cerrar con
+la objeción documentada (edge-case improbable: los agentes reales del
+repo ya empiezan con `#`) en vez de pedir el fix. Queda como mejora futura
+si aparece un caso real. 186 tests.
+
+### Feature 10 `init_backup_before_apply` (done, 28/08/2026)
+
+`applyPlan` hace backup en `.claude/backups/<timestamp>/` de todo lo que
+va a tocar (create/update/delete) antes de escribir nada. Rollback MANUAL
+por diseño, documentado explícitamente. Revisión en dos rondas: 1ra
+`APPROVED_WITH_OBJECTION` (faltaba test explícito de I/O real para
+`actionCreate` sobre un archivo ya existente en disco); el humano pidió
+cerrar el gap — se agregó el test, confirmando que era solo falta de
+cobertura, no un bug real; 2da ronda `APPROVED` sin objeciones. 202 tests.
+
+### Feature 11 `doctor_debt_ratchet` (done, 28/08/2026)
+
+Extiende `april doctor` con un ratchet de deuda: métrica de TODOs sin
+feature asociada (`CHECKPOINTS.md` C3), tokenizada con `go/scanner`
+(distingue `COMMENT` de `STRING` — evitó falsos positivos reales del
+propio repo, incluidos fixtures de test que contienen el texto literal
+`// TODO`). Baseline persistido en `.claude/doctor-baseline.json`
+(gitignoreado, excluido del hash de árbol vía la feature 12 sin tocar
+código), congelado solo mediante flag explícito `--freeze-baseline` que
+se niega a sobreescribir — preserva el contrato read-only de la feature 9
+por defecto. Revisión en dos rondas: 1ra `APPROVED_WITH_OBJECTION` (bloque
+de test muerto sin aserción + falta de test aislado para el mecanismo
+comentario-vs-string); el humano pidió cerrar ambas antes de aprobar —
+cerradas sin tocar código de producción; 2da ronda `APPROVED` sin
+objeciones. 207 tests.
+
+### Estado al cierre de esta sesión
+
+Backlog completo (features 1-12) en `done`. `april status --json`:
+`phase: closed`. Nada commiteado a git todavía — decisión explícita del
+humano de manejar el commit él mismo en el siguiente paso, no bloqueante
+para el estado del backlog.
+
 ## 2026-08-26/28 — Sesión "árbitro `april status`" (features 1-7, todas `done`)
 
 Backlog derivado de `ROADMAP.md` (comparación April vs. gentle-ai, E0-E6):

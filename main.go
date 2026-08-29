@@ -24,6 +24,8 @@ func main() {
 		cmdInit()
 	case "status":
 		cmdStatus()
+	case "doctor":
+		cmdDoctor()
 	case "feature":
 		cmdFeature()
 	case "verify":
@@ -49,6 +51,8 @@ func printUsage() {
 Commands:
   init [directory]                                   Scaffold project structure
   status [id] [--json]                                Show computed phase/nextRecommended/blockedReasons
+  doctor [--json]                                     Chequeo read-only de salud del entorno (manifiesto, agentes, status, deuda vs baseline)
+  doctor --freeze-baseline                            Congela el baseline de deuda actual (única escritura de doctor; falla si ya existe uno)
   feature set-status <id> <estado> [--verdict <valor>] Única vía válida de escritura de feature_list.json
   verify record --feature <id> -- <comando>           Corre <comando>, anexa evidencia a .claude/verify-ledger.jsonl
   review start --feature <id> [--json]                Ejecuta git write-tree, imprime subject_hash; con --json, agrega touchedPaths/sensitiveAreasTouched/extraReviewRequired

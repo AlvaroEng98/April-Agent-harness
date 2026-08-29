@@ -984,3 +984,301 @@ func TestInitShInvocaAprilStatusSinHeredocPython(t *testing.T) {
 		t.Errorf("init.sh ya no invoca el comando 'status'")
 	}
 }
+
+// TestBackupCandidatesPure cubre backupCandidates() de forma aislada, sin
+// tocar disco: opera solo sobre el struct scaffoldPlan ya decidido. Los
+// archivos con acción actionCreate/actionUpdate (applyPlan les hace
+// os.WriteFile) y los de filesToDelete (os.Remove) deben aparecer; los que
+// applyPlan no toca (actionSkipUnmodified, actionSkipConflict, actionAdopt)
+// no deben aparecer.
+func TestBackupCandidatesPure(t *testing.T) {
+	plan := scaffoldPlan{
+		files: []scaffoldFileWrite{
+			{relPath: "create.txt", action: actionCreate},
+			{relPath: "update.txt", action: actionUpdate},
+			{relPath: "skip-unmodified.txt", action: actionSkipUnmodified},
+			{relPath: "skip-conflict.txt", action: actionSkipConflict},
+			{relPath: "adopt.txt", action: actionAdopt},
+		},
+		filesToDelete: []scaffoldFileDelete{
+			{relPath: "borrar.txt"},
+		},
+	}
+
+	got := backupCandidates(plan)
+
+	want := map[string]bool{"create.txt": true, "update.txt": true, "borrar.txt": true}
+	if len(got) != len(want) {
+		t.Fatalf("backupCandidates = %v, se esperaban exactamente %v", got, want)
+	}
+	for _, rel := range got {
+		if !want[rel] {
+			t.Errorf("backupCandidates incluyó %q sin que applyPlan vaya a tocarlo", rel)
+		}
+	}
+}
+
+// TestBackupBeforeApplySinArchivosExistentesNoCreaBackup cubre el caso
+// "scaffold inicial sobre directorio vacío": todos los archivos son
+// actionCreate y ninguno existe todavía en disco, así que no hay nada que
+// perder — backupBeforeApply no debe crear ningún directorio de backup.
+func TestBackupBeforeApplySinArchivosExistentesNoCreaBackup(t *testing.T) {
+	dest := t.TempDir()
+
+	plan := scaffoldPlan{
+		absTarget: dest,
+		files: []scaffoldFileWrite{
+			{relPath: "nuevo.txt", action: actionCreate},
+		},
+	}
+
+	backupDir, err := backupBeforeApply(plan)
+	if err != nil {
+		t.Fatalf("backupBeforeApply falló: %v", err)
+	}
+	if backupDir != "" {
+		t.Errorf("se esperaba backupDir vacío (nada que respaldar), se obtuvo %q", backupDir)
+	}
+	if _, err := os.Stat(filepath.Join(dest, ".claude", "backups")); !os.IsNotExist(err) {
+		t.Errorf(".claude/backups no debería crearse cuando no hay archivos existentes que respaldar")
+	}
+}
+
+// TestBackupBeforeApplyCopiaArchivosExistentes cubre que backupBeforeApply
+// copia, con copia fiel de contenido, todo archivo que YA existe en disco y
+// que el plan marca para sobreescribir (actionUpdate) o borrar
+// (filesToDelete), antes de que applyPlan los toque.
+func TestBackupBeforeApplyCopiaArchivosExistentes(t *testing.T) {
+	dest := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dest, "config.txt"), []byte("contenido viejo"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "old.txt"), []byte("a borrar"), 0644); err != nil {
+		t.Fatalf("no se pudo preparar old.txt: %v", err)
+	}
+
+	plan := scaffoldPlan{
+		absTarget: dest,
+		files: []scaffoldFileWrite{
+			{relPath: "config.txt", action: actionUpdate},
+		},
+		filesToDelete: []scaffoldFileDelete{
+			{relPath: "old.txt", destPath: filepath.Join(dest, "old.txt")},
+		},
+	}
+
+	backupDir, err := backupBeforeApply(plan)
+	if err != nil {
+		t.Fatalf("backupBeforeApply falló: %v", err)
+	}
+	if backupDir == "" {
+		t.Fatalf("se esperaba un backupDir no vacío")
+	}
+	if !strings.Contains(filepath.ToSlash(backupDir), ".claude/backups/") {
+		t.Errorf("backupDir = %q, se esperaba que quedara bajo .claude/backups/", backupDir)
+	}
+
+	for _, rel := range []string{"config.txt", "old.txt"} {
+		got, err := os.ReadFile(filepath.Join(backupDir, rel))
+		if err != nil {
+			t.Fatalf("no se encontró copia de %s en el backup: %v", rel, err)
+		}
+		want, err := os.ReadFile(filepath.Join(dest, rel))
+		if err != nil {
+			t.Fatalf("no se pudo leer el original %s: %v", rel, err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("backup de %s = %q, se esperaba copia fiel %q", rel, got, want)
+		}
+	}
+}
+
+// TestBackupBeforeApplyCubreActionCreateConArchivoYaExistente cubre el caso
+// en que planScaffoldFromFS marca un archivo como actionCreate (no estaba en
+// el manifiesto previo, hadPrev=false) pero ese mismo relPath YA existe en
+// disco con contenido distinto al del template (p.ej. el usuario lo creó a
+// mano, o quedó de otro origen, sin que el manifiesto lo rastreara). La rama
+// !hadPrev de planScaffoldFromFS no chequea diskExists antes de decidir
+// actionCreate, así que backupBeforeApply debe respaldar igual el contenido
+// que había en disco antes de que applyPlan lo sobreescriba.
+func TestBackupBeforeApplyCubreActionCreateConArchivoYaExistente(t *testing.T) {
+	dest := t.TempDir()
+
+	original := []byte("contenido manual del usuario")
+	if err := os.WriteFile(filepath.Join(dest, "nuevo.txt"), original, 0644); err != nil {
+		t.Fatalf("no se pudo preparar nuevo.txt: %v", err)
+	}
+	// Manifiesto previo presente (no corrupto) pero sin rastro de nuevo.txt:
+	// adopting=false, hadPrev=false para ese archivo.
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"nuevo.txt": {Data: []byte("contenido del template")}}
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	// Confirma la premisa del caso: el plan lo marca actionCreate pese a que
+	// nuevo.txt ya existe en disco.
+	if len(plan.files) != 1 || plan.files[0].action != actionCreate {
+		t.Fatalf("se esperaba un único archivo con actionCreate, plan.files=%+v", plan.files)
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if !strings.Contains(out, ".claude") || !strings.Contains(out, "backup") {
+		t.Errorf("se esperaba un aviso mencionando la ubicación del backup, se obtuvo:\n%s", out)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dest, ".claude", "backups"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("se esperaba exactamente un directorio de backup, err=%v entries=%v", err, entries)
+	}
+	backupDir := filepath.Join(dest, ".claude", "backups", entries[0].Name())
+
+	got, err := os.ReadFile(filepath.Join(backupDir, "nuevo.txt"))
+	if err != nil {
+		t.Fatalf("no se encontró copia de nuevo.txt en el backup: %v", err)
+	}
+	if string(got) != string(original) {
+		t.Errorf("el backup de nuevo.txt = %q, se esperaba el contenido previo %q", got, original)
+	}
+
+	// applyPlan ya sobreescribió el destino con la plantilla nueva.
+	gotDest, err := os.ReadFile(filepath.Join(dest, "nuevo.txt"))
+	if err != nil {
+		t.Fatalf("no se pudo leer nuevo.txt del destino: %v", err)
+	}
+	if string(gotDest) != "contenido del template" {
+		t.Errorf("nuevo.txt del destino = %q, se esperaba el contenido del template tras aplicar", gotDest)
+	}
+}
+
+// TestApplyPlanGeneraBackupAntesDeAplicar cubre el flujo completo a través
+// de applyPlan: sobre un directorio ya scaffoldeado (config.txt gestionado
+// por el manifiesto, actionUpdate), correr applyPlan debe dejar un backup
+// localizable con el contenido ANTERIOR a la sobreescritura, y avisar por
+// stdout dónde quedó.
+func TestApplyPlanGeneraBackupAntesDeAplicar(t *testing.T) {
+	dest := t.TempDir()
+	original := []byte("v1")
+	if err := os.WriteFile(filepath.Join(dest, "config.txt"), original, 0644); err != nil {
+		t.Fatalf("no se pudo preparar config.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"config.txt": {Hash: hashContent(original)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	tmplFS := fstest.MapFS{"config.txt": {Data: []byte("v2")}}
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	out, err := captureStdout(t, func() error { return applyPlan(plan) })
+	if err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+	if !strings.Contains(out, ".claude") || !strings.Contains(out, "backup") {
+		t.Errorf("se esperaba un aviso mencionando la ubicación del backup, se obtuvo:\n%s", out)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dest, ".claude", "backups"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("se esperaba exactamente un directorio de backup, err=%v entries=%v", err, entries)
+	}
+	backupDir := filepath.Join(dest, ".claude", "backups", entries[0].Name())
+
+	got, err := os.ReadFile(filepath.Join(backupDir, "config.txt"))
+	if err != nil {
+		t.Fatalf("no se encontró config.txt en el backup: %v", err)
+	}
+	if string(got) != string(original) {
+		t.Errorf("el backup de config.txt = %q, se esperaba el contenido previo %q", got, original)
+	}
+
+	// applyPlan ya sobreescribió el destino con la plantilla nueva.
+	gotDest, err := os.ReadFile(filepath.Join(dest, "config.txt"))
+	if err != nil {
+		t.Fatalf("no se pudo leer config.txt del destino: %v", err)
+	}
+	if string(gotDest) != "v2" {
+		t.Errorf("config.txt del destino = %q, se esperaba v2 tras aplicar el plan", gotDest)
+	}
+}
+
+// TestBackupIntegroSiApplyPlanFallaAMitadDeCamino cubre la acceptance de que,
+// si applyPlan falla a mitad de camino, el backup ya escrito antes de
+// empezar queda íntegro y localizable. Se fuerza el fallo dejando uno de los
+// archivos de destino sin permiso de escritura: applyPlan alcanza a
+// respaldar y a escribir el primer archivo (orden alfabético, fileA antes
+// que fileB) pero falla en el segundo — el backup de AMBOS debe seguir
+// intacto pese al fallo a mitad de camino. El rollback (restaurar desde el
+// backup) es manual: applyPlan no lo hace automáticamente.
+func TestBackupIntegroSiApplyPlanFallaAMitadDeCamino(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("corriendo como root: los bits de permiso no bloquean la escritura")
+	}
+
+	dest := t.TempDir()
+	contentA := []byte("A-v1")
+	contentB := []byte("B-v1")
+	pathA := filepath.Join(dest, "fileA.txt")
+	pathB := filepath.Join(dest, "fileB.txt")
+	if err := os.WriteFile(pathA, contentA, 0644); err != nil {
+		t.Fatalf("no se pudo preparar fileA.txt: %v", err)
+	}
+	if err := os.WriteFile(pathB, contentB, 0644); err != nil {
+		t.Fatalf("no se pudo preparar fileB.txt: %v", err)
+	}
+	if err := writeManifest(dest, manifest{Files: map[string]manifestEntry{
+		"fileA.txt": {Hash: hashContent(contentA)},
+		"fileB.txt": {Hash: hashContent(contentB)},
+	}}); err != nil {
+		t.Fatalf("no se pudo preparar el manifiesto previo: %v", err)
+	}
+
+	// fileB.txt queda sin permiso de escritura: applyPlan fallará al
+	// intentar sobreescribirlo con la plantilla nueva.
+	if err := os.Chmod(pathB, 0444); err != nil {
+		t.Fatalf("no se pudo quitar permiso de escritura a fileB.txt: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(pathB, 0644) })
+
+	tmplFS := fstest.MapFS{
+		"fileA.txt": {Data: []byte("A-v2")},
+		"fileB.txt": {Data: []byte("B-v2")},
+	}
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	_, applyErr := captureStdout(t, func() error { return applyPlan(plan) })
+	if applyErr == nil {
+		t.Fatalf("se esperaba que applyPlan fallara al escribir fileB.txt sin permiso de escritura")
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dest, ".claude", "backups"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("se esperaba exactamente un directorio de backup pese al fallo, err=%v entries=%v", err, entries)
+	}
+	backupDir := filepath.Join(dest, ".claude", "backups", entries[0].Name())
+
+	for rel, want := range map[string][]byte{"fileA.txt": contentA, "fileB.txt": contentB} {
+		got, err := os.ReadFile(filepath.Join(backupDir, rel))
+		if err != nil {
+			t.Fatalf("el backup de %s no está íntegro tras el fallo a mitad de camino: %v", rel, err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("backup de %s = %q, se esperaba el contenido previo %q (íntegro pese al fallo)", rel, got, want)
+		}
+	}
+}
