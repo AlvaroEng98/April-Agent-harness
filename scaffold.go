@@ -313,6 +313,12 @@ func planScaffoldFromFS(absTarget string, tmplFS fs.FS) (scaffoldPlan, error) {
 		case "init.sh":
 			mode = 0755
 		}
+		// go:embed no preserva el bit de ejecución del árbol fuente: cualquier
+		// archivo bajo .claude/hooks/ (hooks PreToolUse/PostToolUse de Claude
+		// Code) debe quedar ejecutable en el destino, no solo init.sh.
+		if strings.HasPrefix(relSlash, ".claude/hooks/") {
+			mode = 0755
+		}
 		fw := scaffoldFileWrite{
 			relPath:  relSlash,
 			destPath: destPath,

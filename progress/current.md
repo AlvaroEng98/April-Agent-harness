@@ -2,7 +2,7 @@
 
 ## Feature in progress
 
-Ninguna `in_progress`. Backlog: features 1-14 y 16-18 `done`; feature 15
+Ninguna `in_progress`. Backlog: features 1-14 y 16-19 `done`; feature 15
 (`blocked_reasons_remedy_commands`, `sdd: true`) es la única `pending`,
 sin bloqueos — ver `session-handoff.md` para el detalle completo de
 cómo se llegó a este punto.
@@ -10,16 +10,18 @@ cómo se llegó a este punto.
 ## Plan
 
 Sesión anterior (31/08/2026) cerró la segunda comparación contra
-`gentle-ai` (candidatos C1-C13, todos resueltos), ejecutó las features
-13, 14 y 16, y — en una continuación de la misma sesión, disparada por
-un log real de CI que pegó el humano — encontró y corrigió dos bugs
-hermanos de `.gitignore` (features 17 y 18: `specs/` y `docs/` de la
-raíz de este repo quedaban fuera de git por error). Ver
+`gentle-ai` (C1-C13), ejecutó las features 13, 14, 16, y en dos
+continuaciones sucesivas encontró y corrigió tres bugs reales
+disparados por uso real de April fuera de este repo: dos de
+`.gitignore` (features 17, 18: `specs/`/`docs/` de la raíz quedaban
+fuera de git) y uno de permisos de scaffold (feature 19: los hooks bajo
+`.claude/hooks/` perdían el bit de ejecución al scaffoldearse). Ver
 `progress/history.md` para el detalle completo.
 
-**Pendiente del humano, no de ningún agente:** correr
-`git add specs/ docs/ && git commit` para versionar por fin las specs y
-la documentación existentes.
+**Pendientes del humano, no de ningún agente:**
+- `git add specs/ docs/ .gitignore .claude/verify-ledger.jsonl progress/ && git commit`
+- En proyectos ya scaffoldeados con el bug de permisos (ej.
+  `/home/avalor/Proyectos/Kada/CO-Backend`): `chmod +x .claude/hooks/*.sh`
 
 Próximo paso: Fase Spec de la feature 15 — lanzar `spec_writer`.
 

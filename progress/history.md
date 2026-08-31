@@ -2,6 +2,36 @@
 
 <!-- Append-only log. Most recent at the top. -->
 
+## 2026-08-31 (continuación 2) — Bit de ejecución perdido en `.claude/hooks/`: feature 19 (done)
+
+El humano corrió `april init` en un proyecto real
+(`/home/avalor/Proyectos/Kada/CO-Backend`) y encontró que Claude Code
+arrancaba con `Failed with non-blocking status code: ... Permiso
+denegado` sobre `.claude/hooks/block-dangerous-git.sh` — el guardrail de
+comandos git peligrosos nunca se ejecutaba.
+
+### Feature 19 `scaffold_hooks_keep_exec_bit` (done, 31/08/2026)
+
+Causa raíz: `go:embed` no preserva el bit de ejecución del árbol fuente;
+`planScaffold` decidía el `mode` de cada archivo a mano vía un `switch
+d.Name()` que solo cubría `"init.sh"` ⇒ `0755` — cualquier archivo bajo
+`.claude/hooks/` quedaba en `0644` en el destino. Bug silencioso, no
+específico de CO-Backend: **el guardrail nunca funcionó en ningún
+proyecto scaffoldeado hasta ahora**. Fix con TDD rojo→verde: test nuevo
+(`TestPlanScaffoldHooksQuedanEjecutables`) confirmado en rojo primero,
+luego una condición por `relSlash` (`strings.HasPrefix(relSlash,
+".claude/hooks/")` → `0755`, mismo estilo que el guard de dogfooding de
+`.claude/manifest.json`) — por prefijo de ruta, no por nombre de archivo
+puntual, para no repetir el bug con el próximo hook. `init.sh` y el
+resto de archivos (`0644`) sin cambios. Revisión: `APPROVED` en la
+primera pasada, con verificación activa de que el bloque nuevo no
+reordena ni reemplaza el caso de `init.sh`.
+
+**Fuera de alcance de esta feature, acción manual pendiente:** proyectos
+ya scaffoldeados con el bug (`CO-Backend` incluido) necesitan
+`chmod +x .claude/hooks/*.sh` a mano — el fix solo corrige corridas
+futuras de `april init`.
+
 ## 2026-08-31 (continuación) — Fix de dos bugs reales de `.gitignore`: features 17, 18 (done)
 
 El humano pegó un log real de CI de GitHub Actions mostrando que

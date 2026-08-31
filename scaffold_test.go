@@ -207,6 +207,49 @@ func TestPlanScaffoldIsPure(t *testing.T) {
 	}
 }
 
+// TestPlanScaffoldHooksQuedanEjecutables cubre la regresión de
+// scaffold_hooks_keep_exec_bit: go:embed no preserva el bit de ejecución del
+// árbol fuente, así que planScaffold debe forzar mode 0755 para cualquier
+// archivo bajo .claude/hooks/ (no solo init.sh), sin volver ejecutable nada
+// bajo .claude/agents/ (que debe seguir en 0644). Usa el árbol real embebido
+// (planScaffold, no planScaffoldFromFS) porque .claude/hooks/
+// block-dangerous-git.sh ya existe en este repo — mismo patrón que
+// TestPlanScaffoldIsPure.
+func TestPlanScaffoldHooksQuedanEjecutables(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "nested", "dest")
+
+	plan, err := planScaffold(dest)
+	if err != nil {
+		t.Fatalf("planScaffold falló: %v", err)
+	}
+
+	var hook, agentFile *scaffoldFileWrite
+	for i := range plan.files {
+		switch {
+		case plan.files[i].relPath == ".claude/hooks/block-dangerous-git.sh":
+			hook = &plan.files[i]
+		case strings.HasPrefix(plan.files[i].relPath, ".claude/agents/") && strings.HasSuffix(plan.files[i].relPath, ".md"):
+			if agentFile == nil {
+				agentFile = &plan.files[i]
+			}
+		}
+	}
+
+	if hook == nil {
+		t.Fatalf("el plan no incluye .claude/hooks/block-dangerous-git.sh")
+	}
+	if hook.mode != 0755 {
+		t.Errorf("se esperaba modo 0755 para .claude/hooks/block-dangerous-git.sh en el plan, se obtuvo %o", hook.mode)
+	}
+
+	if agentFile == nil {
+		t.Fatalf("el plan no incluye ningún archivo bajo .claude/agents/")
+	}
+	if agentFile.mode != 0644 {
+		t.Errorf("se esperaba modo 0644 para %s en el plan, se obtuvo %o", agentFile.relPath, agentFile.mode)
+	}
+}
+
 // captureStdout redirige temporalmente os.Stdout mientras corre fn y
 // devuelve todo lo impreso. scaffoldInit imprime mensajes informativos por
 // stdout que algunos tests necesitan inspeccionar (p.ej. el aviso de
