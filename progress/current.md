@@ -2,22 +2,22 @@
 
 ## Feature in progress
 
-Ninguna. Backlog completo (features 1-12) en `done` — `april status --json`
-reporta `phase: closed`, `nextRecommended: "nada — no hay features
-pendientes"`.
+Ninguna `in_progress`. Backlog: features 1-14 y 16 `done`; feature 15
+(`blocked_reasons_remedy_commands`, `sdd: true`) es la única `pending`,
+sin bloqueos — ver `session-handoff.md` para el detalle completo de
+cómo se llegó a este punto.
 
 ## Plan
 
-Sesión anterior (26-28/08/2026, continuada el 28/08/2026) cerró las
-features 1 a 12 del backlog derivado de `ROADMAP.md` — ver
-`progress/history.md` para el detalle completo de cada una (decisiones de
-diseño, objeciones de revisión, lecciones de proceso) y
-`session-handoff.md` para el resumen ejecutivo y los riesgos abiertos. No
-repetir esa historia acá — este archivo arranca limpio para la sesión en
-curso.
+Sesión anterior (31/08/2026) cerró la segunda comparación contra
+`gentle-ai` (candidatos C1-C13 de `ROADMAP.md`, todos resueltos) y
+ejecutó las features 13, 14 y 16 — ver `progress/history.md` para el
+detalle completo.
 
-Próximo paso pendiente de decisión humana: sumar features nuevas al
-backlog (vía `planner_agent`) y/o decidir cuándo commitear el trabajo
-acumulado sin commitear.
+Próximo paso: Fase Spec de la feature 15 — lanzar `spec_writer`.
 
 ## Progress Log
+
+<!-- Cada subagente agrega su propio bullet acá al terminar. Se
+consolida en progress/history.md al cierre de la sesión que cierre la
+feature 15. -->

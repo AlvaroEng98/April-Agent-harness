@@ -294,6 +294,16 @@ func planScaffoldFromFS(absTarget string, tmplFS fs.FS) (scaffoldPlan, error) {
 			return nil
 		}
 
+		// Guard de dogfooding: si el propio .claude/verify-ledger.jsonl de
+		// este repo quedara embebido en tmplFS (por correr april init sobre
+		// este mismo repo por error), nunca se propaga a un destino — el
+		// ledger real de este repo tiene ids de feature, treeHash,
+		// timestamps y stdout de tests que no aplican al proyecto
+		// scaffoldeado.
+		if relSlash == verifyLedgerPath {
+			return nil
+		}
+
 		data, err := fs.ReadFile(tmplFS, path)
 		if err != nil {
 			return err

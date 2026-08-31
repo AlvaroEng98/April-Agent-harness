@@ -963,6 +963,43 @@ func TestManifestJsonEmbebidoNuncaSePropaga(t *testing.T) {
 	}
 }
 
+// TestVerifyLedgerEmbebidoNuncaSePropaga cubre la mitigación de dogfooding:
+// si por error .claude/verify-ledger.jsonl de este propio repo quedara
+// embebido en el fs.FS de plantilla (porque alguien corrió april init sobre
+// este mismo repo), planScaffoldFromFS lo salta explícitamente y nunca lo
+// escribe en el destino ni lo entra al manifiesto nuevo.
+func TestVerifyLedgerEmbebidoNuncaSePropaga(t *testing.T) {
+	dest := t.TempDir()
+	tmplFS := fstest.MapFS{
+		".claude/verify-ledger.jsonl": {Data: []byte(`{"featureId":"1","treeHash":"x"}` + "\n")},
+		"AGENTS.md":                   {Data: []byte("contenido AGENTS.md")},
+	}
+
+	plan, err := planScaffoldFromFS(dest, tmplFS)
+	if err != nil {
+		t.Fatalf("planScaffoldFromFS falló: %v", err)
+	}
+
+	for _, fw := range plan.files {
+		if fw.relPath == verifyLedgerPath {
+			t.Errorf(".claude/verify-ledger.jsonl embebido en la plantilla no debería propagarse al plan")
+		}
+	}
+	if _, ok := plan.manifest.Files[verifyLedgerPath]; ok {
+		t.Errorf(".claude/verify-ledger.jsonl no debería entrar al manifiesto nuevo")
+	}
+
+	if _, err := captureStdout(t, func() error { return applyPlan(plan) }); err != nil {
+		t.Fatalf("applyPlan falló: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dest, ".claude", "verify-ledger.jsonl")); err == nil {
+		t.Errorf(".claude/verify-ledger.jsonl embebido en la plantilla no debería escribirse en el destino")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("error inesperado al comprobar .claude/verify-ledger.jsonl en el destino: %v", err)
+	}
+}
+
 // TestInitShInvocaAprilStatusSinHeredocPython es un guardarraíl barato (no
 // reemplaza la revisión humana del diff de init.sh, área sensible — ver
 // docs/conventions.md) contra que alguien reintroduzca el heredoc

@@ -28,8 +28,11 @@ trabajo termina en un reporte, no en un cierre de feature — cerrar status a
    existe, o el comando que te haya pasado el orquestador). No reportes
    éxito sin haber corrido algo.
 4. Reporta: archivos tocados (`file:line` cuando aporte), comandos
-   corridos y su resultado, y qué puntos del `acceptance` quedan cubiertos
-   vs pendientes.
+   corridos y su resultado, qué puntos del `acceptance` quedan cubiertos
+   vs pendientes, y el límite de rollback — qué archivos/funciones/
+   comportamiento exacto habría que revertir para deshacer esta unidad
+   sin tocar nada más (relevante cuando varios tickets de la misma
+   feature tocan el mismo archivo).
 5. Agrega un bullet propio al final de `## Progress Log` en
    `progress/current.md` con el mismo resumen del paso 4 (feature/ticket,
    archivos tocados, comando y resultado). Solo agregas — nunca reescribas
@@ -42,3 +45,5 @@ trabajo termina en un reporte, no en un cierre de feature — cerrar status a
 - No toques otra feature distinta a la que te asignaron.
 - Si tu subtarea comparte archivos con otra subtarea que corre en paralelo,
   dilo en el reporte — el orquestador decide cómo resolver el conflicto.
+- Nunca corras `git commit` — el humano commitea siempre, manualmente (ver
+  `CLAUDE.md`, "Reglas duras").

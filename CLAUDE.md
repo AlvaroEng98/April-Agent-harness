@@ -18,6 +18,20 @@ lanzado vía la herramienta `Agent`.
   subagente apropiado vía la herramienta `Agent`.
 - ✅ Las únicas ediciones que puedes realizar tú mismo son dentro de (docs,
   configuración, `progress/`, `feature_list.json`).
+- ❌ **Nunca ejecutes `git commit`** — ni vos (el orquestador) ni ningún
+  subagente que lances. El humano (Alejandro) commitea siempre,
+  manualmente. Ningún commit de este repo lleva atribución de autoría a
+  la IA (`Co-Authored-By`, `Reviewed-by`, `Signed-off-by`) — confirmado
+  explícitamente por el humano el 31/08/2026, candidato C5 de
+  `ROADMAP.md`.
+
+## Responsabilidad
+
+El humano (Alejandro) es responsable de todo lo que cierra
+`april feature set-status <id> done` — un veredicto de subagente
+(`reviewer_agent`, `agent_developer`) es una afirmación que requiere
+evidencia (ledger, tests, spec), nunca una aprobación por sí sola.
+Confirmado el 31/08/2026, candidato C5 de `ROADMAP.md`.
 
 ## Cuándo NO aplica este rol
 
@@ -94,6 +108,17 @@ nuevas al backlog, no solo en el bootstrap.
 Cierre: el `acceptance` de la feature está satisfecho punto por punto y el
 humano aprobó explícitamente el backlog resultante.
 
+## Disciplina anti-sobre-ingeniería al proponer estructura nueva
+
+Antes de proponer un campo de estado, un verbo de CLI, o un flag nuevo en
+`feature_list.json`/`april`, `planner_agent`/`ticket_writer` responde
+explícitamente: ¿esto elimina o consolida más de lo que agrega, o hay un
+mecanismo existente (flag sobre un verbo ya existente, campo ya
+existente) que resuelve lo mismo? Si hay uno, se usa ese antes de crear
+superficie nueva. Origen: candidato C4 de `ROADMAP.md` — precedente ya
+aplicado bien sin estar escrito: la feature 8 sumó un flag `--json` a
+`review start` en vez de un verbo nuevo.
+
 ## Fase Spec — features de producto con `sdd: true`
 
 Antes de delegar implementación, debe existir `specs/<name>/spec.md`
@@ -168,6 +193,74 @@ Cierre: tienes veredicto de `reviewer_agent` para la feature, y si fue
 - `human_approval_required_to_close`: el humano dice explícitamente que
   cierre — un silencio o un "sigue" no cuenta como aprobación.
 - `one_feature_at_a_time`: nunca dos features en `in_progress` a la vez.
+
+## Mecanismos incorporados de April
+
+Esta sección documenta mecanismos del binario `april` que **todo
+proyecto scaffoldeado hereda** (ledger, backups, `.claude/agents/*.md`)
+— por eso vive acá, en el archivo embebido que `april init` propaga a
+cada proyecto nuevo, y no en `docs/*.md` de este repo (esos son los
+docs de April-como-producto, no viajan con el scaffold). Corrección
+aplicada el 31/08/2026: C8, C10 y C11 (candidatos de `ROADMAP.md`,
+comparación contra `gentle-ai`) se habían escrito primero en
+`docs/verification.md`/`docs/conventions.md` de la raíz por error — un
+proyecto scaffoldeado nunca los habría visto.
+
+### Qué cada guardrail NO prueba
+
+Documentado para que la sola existencia de un mecanismo no genere más
+confianza de la que realmente respalda.
+
+| Guardrail | Qué prueba | Qué NO prueba |
+|---|---|---|
+| Ledger (`verify record`/`review record`) | Que un comando corrió, con qué exit code, contra qué árbol | Que el test en sí sea bueno (uno tautológico pasa igual) o que sea el comando correcto para esa feature — eso lo cubre el paso de "sustancia" de `reviewer_agent`, no el ledger |
+| `subject_hash` congelado (`review start`) | Que se revisó exactamente ese árbol, no uno que cambió después | Que la revisión fue profunda — un `APPROVED` superficial contra el hash correcto sigue siendo superficial |
+| `april doctor` | Drift entre `.claude/manifest.json` y disco, agentes presentes | Corrección del código en sí. Blind spot ya aceptado explícitamente: el chequeo de agentes usa `strings.Contains("#")`, no anclado a inicio de línea |
+| Backup pre-`init` | Que existe una copia del estado previo antes de `applyPlan` | Recuperación automática — el rollback es manual por diseño |
+| Ratchet de deuda (`doctor --freeze-baseline`) | Que la métrica de TODOs sin feature no *creció* frente al baseline | Que la deuda existente (por debajo del baseline) esté bien, y cualquier otra forma de deuda que no sea esa métrica puntual |
+| Hash de árbol respeta `.gitignore` | Que dos árboles con el mismo contenido no-gitignoreado producen el mismo hash | Que un archivo gitignoreado nunca afecta comportamiento real — si algún día uno lo hace (ej. un config), cambiarlo ya no invalida el ledger. Trade-off consciente, no un bug |
+
+### Retención — ledger y backups (revisión manual, no automatizada)
+
+`.claude/verify-ledger.jsonl` y `.claude/backups/` son append-only por
+diseño — ninguno tiene poda automática, y construir esa poda de entrada
+en cada proyecto sería resolver un problema que probablemente no existe
+todavía (ver "Disciplina anti-sobre-ingeniería" arriba). Referencia
+medida en el propio repo de April el 31/08/2026: el ledger tenía 24
+entradas (6067 bytes) cubriendo 8 features cerradas — promedio ~253
+bytes/entrada; `.claude/backups/` tenía 0 directorios. Los umbrales de
+abajo son el punto de partida razonable para cualquier proyecto, a
+ajustar si el ritmo real de ese proyecto es muy distinto.
+
+Criterio para revisar manualmente al consolidar `progress/history.md` al
+cierre de sesión (no hay comando ni automatismo para esto):
+
+| Mecanismo | Umbral disparador | Acción manual sugerida |
+|---|---|---|
+| Ledger (`.claude/verify-ledger.jsonl`) | supera ~500 entradas o ~150 KB | archivar las entradas de features ya en `done` hace más de N sesiones a `.claude/verify-ledger.archive.jsonl` — nunca borrarlas, siguen siendo evidencia de auditoría |
+| Backups (`.claude/backups/`) | acumula más de ~10 directorios | revisar cuáles corresponden a sesiones ya consolidadas en `progress/history.md` y borrarlos a mano — no hay dedup por checksum: dos `init` seguidos sin cambios reales igual crean dos directorios distintos |
+
+### Presupuesto de tamaño para `.claude/agents/*.md`
+
+Referencia medida en el propio repo de April el 31/08/2026: 3 de 5
+agentes ya superaban los ~1000 tokens que gentle-ai usa como tope duro
+para sus skills (`reviewer_agent.md` ~1628 tokens, creciendo de 2510 a
+~6515 bytes en dos meses). Copiar ese tope duro tal cual no encaja: un
+`.claude/agents/*.md` es el contrato completo de un subagente (pasos,
+tabla de contrato/veredicto, formato de salida), no un add-on angosto —
+un tope duro rompería la propiedad de "un archivo, un contrato auditable
+de un vistazo". Regla en dos partes en su lugar:
+
+1. **Cualitativa.** Prosa que explica el *por qué* de una regla o su
+   origen (justificación, contexto histórico) va a `docs/conventions.md`
+   o `docs/verification.md` **del proyecto** — el archivo del agente se
+   queda solo con lo operativo: pasos con cierre explícito, contrato,
+   tabla de veredicto, formato de salida.
+2. **Cuantitativa, blanda** (señal de alarma, no bloqueo automático): si
+   un `.claude/agents/*.md` supera ~1500 tokens (~6000 caracteres,
+   medible con `wc -c` al tocarlo), es la señal para revisar si hay
+   prosa explicativa que debería moverse antes de seguir agregando. No
+   se justifica construir un mecanismo automático que lo mida.
 
 ## Qué puedes editar tú mismo
 

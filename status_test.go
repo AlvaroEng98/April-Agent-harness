@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -59,7 +61,14 @@ func TestFeatureConSpecYSinTicketsEsFaseTickets(t *testing.T) {
 		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
 			`{"id": 2, "name": "april_status_arbiter", "title": "t", "sdd": true, "status": "spec_ready"}`,
 		)},
-		"specs/april_status_arbiter/spec.md": &fstest.MapFile{Data: []byte("# spec\n")},
+		// El spec incluye un bloque Given/When/Then (irrelevante para lo que
+		// este test cubre — derivePhase/nextRecommendedText) para no caer en
+		// no_gwt_coverage (ticket 02, spec_gwt_mechanical_check): este fixture
+		// es exactamente "spec existe, sin tickets, status != done", la
+		// ventana que ese chequeo vigila, y un blockedReasons no vacío
+		// vaciaría nextRecommended, rompiendo la aserción de más abajo sobre
+		// ticket_writer sin que este test tenga nada que ver con GWT.
+		"specs/april_status_arbiter/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nGiven algo\nWhen otra cosa\nThen resultado\n")},
 	}
 
 	report, err := computeStatusFromFS(fsys, intPtr(2))
@@ -1301,6 +1310,296 @@ func TestNoReviewVerdictSoloAplicaAFeatureInProgress(t *testing.T) {
 	}
 	if anyContains(report.BlockedReasons, "no_review_verdict") {
 		t.Errorf("BlockedReasons = %v, no se esperaba no_review_verdict sin ninguna feature in_progress", report.BlockedReasons)
+	}
+}
+
+// ---- Ticket 01 (feature spec_gwt_mechanical_check): test de caracterización ----
+
+// featuresSddDoneAlImplementarTicket01 es el conjunto exacto de features
+// sdd:true con status:"done" en feature_list.json, verificado explícitamente
+// contra el archivo real al momento de escribir este test (31/08/2026): ids
+// 2 (april_status_arbiter), 5 (verify_record_ledger), 6
+// (review_verdict_recorded), 7 (review_frozen_candidate), 8
+// (review_depth_by_diff_sensitivity) y 12 (tree_hash_respects_gitignore).
+// Ninguna otra feature sdd:true tiene status:"done" en ese momento (13 es
+// sdd:false; 14 es la propia feature de este ticket, in_progress; 15 está
+// pending). Ver docs/conventions.md, "Cambios a la lógica de derivación de
+// fase" — este test es la red de seguridad obligatoria antes de que el
+// ticket 02 de esta misma feature toque computeBlockedReasons.
+var featuresSddDoneAlImplementarTicket01 = []struct {
+	id   int
+	name string
+}{
+	{2, "april_status_arbiter"},
+	{5, "verify_record_ledger"},
+	{6, "review_verdict_recorded"},
+	{7, "review_frozen_candidate"},
+	{8, "review_depth_by_diff_sensitivity"},
+	{12, "tree_hash_respects_gitignore"},
+}
+
+// readRealFileForCaracterizacion lee un archivo del árbol real de este mismo
+// repo (nunca un fixture) — se usa únicamente para poblar fielmente el
+// contenido de spec.md/tickets de las features sdd:true ya done dentro del
+// fstest.MapFS aislado que arma buildIsolatedDoneFeatureFixture, sin acoplar
+// el test a texto tipeado a mano que pueda desincronizarse del archivo real.
+func readRealFileForCaracterizacion(t *testing.T, p string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatalf("no se pudo leer %s del árbol real: %v", p, err)
+	}
+	return data
+}
+
+// buildIsolatedDoneFeatureFixture arma, para una única feature sdd:true ya
+// done, un fstest.MapFS que replica fielmente su spec.md y sus tickets
+// reales (leídos del árbol real de este repo vía
+// readRealFileForCaracterizacion), pero con un feature_list.json aislado que
+// contiene ÚNICAMENTE esa feature — nunca el backlog completo real.
+// blockedReasons (status.go, computeBlockedReasons) es una señal GLOBAL que
+// recorre TODO feature_list.json: si este test usara el feature_list.json
+// real completo (vía os.DirFS(".")), el resultado quedaría contaminado por
+// el estado transitorio de cualquier otra feature en curso — en particular,
+// la propia feature 14 (spec_gwt_mechanical_check, in_progress mientras se
+// escribe este test) reporta hoy no_test_evidence/no_review_verdict, y ese
+// ruido desaparecerá en cuanto se registre evidencia para la feature 14 sin
+// que eso tenga nada que ver con derivePhase/computeBlockedReasons de las
+// seis features ya done. Aislar la feature es lo que hace de este test una
+// caracterización estable de esas tres funciones para las seis features
+// done, no un espejo frágil del estado momentáneo del resto del backlog.
+func buildIsolatedDoneFeatureFixture(t *testing.T, id int, name string) fstest.MapFS {
+	t.Helper()
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			fmt.Sprintf(`{"id": %d, "name": %q, "title": "t", "sdd": true, "status": "done"}`, id, name),
+		)},
+	}
+
+	specPath := specMdPath(name)
+	fsys[specPath] = &fstest.MapFile{Data: readRealFileForCaracterizacion(t, specPath)}
+
+	ticketsDir := ticketsDirRaw(name)
+	entries, err := os.ReadDir(ticketsDir)
+	if err != nil {
+		t.Fatalf("no se pudo listar %s del árbol real: %v", ticketsDir, err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		p := path.Join(ticketsDir, e.Name())
+		fsys[p] = &fstest.MapFile{Data: readRealFileForCaracterizacion(t, p)}
+	}
+
+	return fsys
+}
+
+// TestCaracterizacionFeaturesSddDoneAntesDeComputeBlockedReasons es el test
+// de caracterización obligatorio de docs/conventions.md ("Cambios a la
+// lógica de derivación de fase") que MUST existir antes de que el ticket 02
+// de esta misma feature (spec_gwt_mechanical_check) toque
+// computeBlockedReasons: fija, como literales hardcodeados (nunca
+// recalculados llamando a derivePhase/computeBlockedReasons/
+// nextRecommendedText), el phase/blockedReasons/nextRecommended actual de
+// cada una de las seis features sdd:true con status:"done" que existen HOY
+// en feature_list.json (featuresSddDoneAlImplementarTicket01). Las seis dan
+// hoy exactamente el mismo patrón — phase "closed", blockedReasons vacío,
+// nextRecommended "nada — ... ya está cerrada" — porque derivePhase corta a
+// "closed" en cuanto status == "done" sin mirar el disco, y ninguna de las
+// seis cae en la ventana "spec existe, sin tickets, status != done" que va a
+// tocar el ticket 02 (las seis ya tienen spec.md y al menos un ticket en
+// disco). El ticket 02 debe demostrar que este mismo test sigue pasando
+// exactamente igual después de su cambio.
+func TestCaracterizacionFeaturesSddDoneAntesDeComputeBlockedReasons(t *testing.T) {
+	want := map[int]struct {
+		phase           string
+		blockedReasons  []string
+		nextRecommended string
+	}{
+		2:  {phaseClosed, []string{}, "nada — la feature 2 (april_status_arbiter) ya está cerrada"},
+		5:  {phaseClosed, []string{}, "nada — la feature 5 (verify_record_ledger) ya está cerrada"},
+		6:  {phaseClosed, []string{}, "nada — la feature 6 (review_verdict_recorded) ya está cerrada"},
+		7:  {phaseClosed, []string{}, "nada — la feature 7 (review_frozen_candidate) ya está cerrada"},
+		8:  {phaseClosed, []string{}, "nada — la feature 8 (review_depth_by_diff_sensitivity) ya está cerrada"},
+		12: {phaseClosed, []string{}, "nada — la feature 12 (tree_hash_respects_gitignore) ya está cerrada"},
+	}
+
+	for _, f := range featuresSddDoneAlImplementarTicket01 {
+		t.Run(f.name, func(t *testing.T) {
+			fsys := buildIsolatedDoneFeatureFixture(t, f.id, f.name)
+
+			report, err := computeStatusFromFS(fsys, intPtr(f.id))
+			if err != nil {
+				t.Fatalf("computeStatusFromFS falló para la feature %d (%s): %v", f.id, f.name, err)
+			}
+
+			w := want[f.id]
+			if report.Phase != w.phase {
+				t.Errorf("Phase = %q, se esperaba el literal %q (feature %d, %s)", report.Phase, w.phase, f.id, f.name)
+			}
+			if !reflect.DeepEqual(report.BlockedReasons, w.blockedReasons) {
+				t.Errorf("BlockedReasons = %v, se esperaba el literal %v (feature %d, %s)", report.BlockedReasons, w.blockedReasons, f.id, f.name)
+			}
+			if report.NextRecommended != w.nextRecommended {
+				t.Errorf("NextRecommended = %q, se esperaba el literal %q (feature %d, %s)", report.NextRecommended, w.nextRecommended, f.id, f.name)
+			}
+		})
+	}
+}
+
+// ---- Ticket 02 (feature spec_gwt_mechanical_check): no_gwt_coverage ----
+
+// TestSpecSinGWTNiMarcadorNiTicketsReportaNoGwtCoverage cubre US1: una spec
+// existente, sin ningún bloque Given/When/Then, sin el marcador de
+// opt-out, sin tickets en disco, y con status distinto de done, dispara
+// no_gwt_coverage identificando la feature.
+func TestSpecSinGWTNiMarcadorNiTicketsReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nProsa sin bloques Given/When/Then.\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	found := false
+	for _, r := range report.BlockedReasons {
+		if strings.Contains(r, "no_gwt_coverage") && strings.Contains(r, "20") && strings.Contains(r, "feature_sin_gwt") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("se esperaba que blockedReasons tuviera una entrada con no_gwt_coverage identificando id 20 y nombre feature_sin_gwt, se obtuvo %v", report.BlockedReasons)
+	}
+}
+
+// TestSpecConGWTRealNoReportaNoGwtCoverage cubre US2: una spec con al menos
+// un bloque Given/When/Then real no dispara no_gwt_coverage.
+func TestSpecConGWTRealNoReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nGiven algo\nWhen otra cosa\nThen resultado\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	if anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("BlockedReasons = %v, no se esperaba no_gwt_coverage con un bloque Given/When/Then real", report.BlockedReasons)
+	}
+}
+
+// TestSpecConMarcadorOptOutNoReportaNoGwtCoverage cubre US3: el marcador
+// explícito <!-- gwt: no aplica --> basta por sí solo, sin necesidad de
+// ningún bloque Given/When/Then.
+func TestSpecConMarcadorOptOutNoReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nProsa sin GWT.\n\n<!-- gwt: no aplica -->\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	if anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("BlockedReasons = %v, no se esperaba no_gwt_coverage con el marcador de opt-out presente", report.BlockedReasons)
+	}
+}
+
+// TestSpecSinGWTConTicketsNoReportaNoGwtCoverage cubre US4: en cuanto la
+// feature ya tiene al menos un archivo de ticket en disco, el chequeo deja
+// de aplicar — ya pasó la puerta spec→tickets.
+func TestSpecSinGWTConTicketsNoReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "in_progress"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md":              &fstest.MapFile{Data: []byte("# spec\n\nProsa sin GWT.\n")},
+		"specs/feature_sin_gwt/tickets/01-nucleo.md": &fstest.MapFile{Data: []byte("# 01\n\n**Blocked by:** None\n\n**Status:** pending\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	if anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("BlockedReasons = %v, no se esperaba no_gwt_coverage con al menos un ticket ya en disco", report.BlockedReasons)
+	}
+}
+
+// TestSpecSinGWTConStatusDoneNoReportaNoGwtCoverage cubre US5: una feature
+// ya done no vuelve a evaluarse retroactivamente.
+func TestSpecSinGWTConStatusDoneNoReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "done"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nProsa sin GWT.\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	if anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("BlockedReasons = %v, no se esperaba no_gwt_coverage con status done", report.BlockedReasons)
+	}
+}
+
+// TestSpecConGWTYMarcadorSimultaneoNoReportaNoGwtCoverage cubre US19: la
+// redundancia (marcador de opt-out + bloques Given/When/Then reales a la
+// vez) no se arbitra — la sola presencia del marcador basta.
+func TestSpecConGWTYMarcadorSimultaneoNoReportaNoGwtCoverage(t *testing.T) {
+	fsys := fstest.MapFS{
+		"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+			`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+		)},
+		"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nGiven algo\nWhen otra cosa\nThen resultado\n\n<!-- gwt: no aplica -->\n")},
+	}
+
+	report, err := computeStatusFromFS(fsys, intPtr(20))
+	if err != nil {
+		t.Fatalf("computeStatusFromFS falló: %v", err)
+	}
+	if anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("BlockedReasons = %v, no se esperaba no_gwt_coverage con GWT real y marcador de opt-out simultáneos", report.BlockedReasons)
+	}
+}
+
+// TestStatusYDoctorNoEscribenArchivosConNoGwtCoverage — mismo patrón que
+// TestDoctorNoEscribeArchivos (feature 9, doctor_readonly_check): disparar
+// no_gwt_coverage vía una feature real en disco no hace que
+// `april status`/`april doctor` escriban, borren ni modifiquen ningún
+// archivo, corridos varias veces.
+func TestStatusYDoctorNoEscribenArchivosConNoGwtCoverage(t *testing.T) {
+	dir := chdirTemp(t)
+	writeFixtureFile(t, dir, "feature_list.json", testFeatureListJSON(
+		`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+	))
+	writeFixtureFile(t, dir, "specs/feature_sin_gwt/spec.md", []byte("# spec\n\nProsa sin bloques Given/When/Then.\n"))
+
+	before := hashTreeSnapshot(t, dir)
+
+	for i := 0; i < 3; i++ {
+		runStatusCaptured(t, []string{"--json"})
+		runStatusCaptured(t, nil)
+		_ = runDoctor(nil)
+		_ = runDoctor([]string{"--json"})
+	}
+
+	after := hashTreeSnapshot(t, dir)
+	if !snapshotsEqual(before, after) {
+		t.Errorf("status/doctor modificaron el árbol al disparar no_gwt_coverage — deben ser read-only")
 	}
 }
 

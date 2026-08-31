@@ -71,12 +71,28 @@ Ejemplo:
 La lista debe ser extensísima y cubrir todos los aspectos de la feature —
 no te quedes en las historias obvias.
 
+Si la historia implica una rama de comportamiento verificable (camino
+feliz vs camino de error), agregá junto a ella un bloque Given/When/Then
+— no reemplaza el formato Como/quiero/para, lo complementa:
+
+   Given <estado inicial>
+   When <acción>
+   Then <resultado observable>
+
+No fuerces este bloque en historias puramente de preferencia de diseño
+sin rama verificable (ej. "quiero que los mensajes usen tono formal") —
+ahí el Como/quiero/para solo, sin GWT, es suficiente.
+
 ## Implementation Decisions
 
 Decisiones de implementación tomadas: módulos a construir/modificar,
 interfaces que cambian, clarificaciones técnicas, decisiones de
 arquitectura, cambios de esquema, contratos de API, interacciones
 específicas.
+
+Marca cada decisión con una palabra clave RFC 2119: MUST (rompe el
+acceptance si no se cumple), SHOULD o MAY (negociable, no rompe el
+acceptance si se resuelve distinto).
 
 No incluyas rutas de archivo ni snippets de código — quedan obsoletos
 rápido. Excepción: si un prototipo produjo un snippet que codifica una

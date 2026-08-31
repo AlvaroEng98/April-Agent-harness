@@ -284,6 +284,38 @@ func TestDoctorNoEscribeArchivos(t *testing.T) {
 	}
 }
 
+// TestDoctorHeredaNoGwtCoverageSinCodigoPropio dispara no_gwt_coverage
+// (ticket 02, feature spec_gwt_mechanical_check) vía una feature real en
+// disco y verifica que computeDoctor().BlockedReasons/Healthy lo reflejan
+// — documenta que doctor.go no tiene ninguna línea de código propia para
+// esto, hereda la señal de computeStatus(nil) tal como ya hace hoy con
+// no_test_evidence/no_review_verdict.
+func TestDoctorHeredaNoGwtCoverageSinCodigoPropio(t *testing.T) {
+	dest := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dest, "feature_list.json"), []byte(`{"rules":{"valid_status":["pending","spec_ready","in_progress","done","blocked"]},"features":[{"id":20,"name":"feature_sin_gwt","title":"t","sdd":true,"status":"pending"}]}`), 0644); err != nil {
+		t.Fatalf("write fl: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dest, "specs", "feature_sin_gwt"), 0755); err != nil {
+		t.Fatalf("mkdir specs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "specs", "feature_sin_gwt", "spec.md"), []byte("# spec sin GWT\n\nProsa sin bloques Given/When/Then.\n"), 0644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	chdirTempDoctor(t, dest)
+
+	report, err := computeDoctor()
+	if err != nil {
+		t.Fatalf("computeDoctor: %v", err)
+	}
+	if !anyContains(report.BlockedReasons, "no_gwt_coverage") {
+		t.Errorf("report.BlockedReasons = %v, se esperaba una entrada con no_gwt_coverage", report.BlockedReasons)
+	}
+	if report.Healthy {
+		t.Errorf("report.Healthy = true, se esperaba false con no_gwt_coverage presente")
+	}
+}
+
 func TestDoctorJSONConDrift(t *testing.T) {
 	dest := t.TempDir()
 	original := []byte("orig")

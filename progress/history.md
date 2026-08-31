@@ -2,6 +2,103 @@
 
 <!-- Append-only log. Most recent at the top. -->
 
+## 2026-08-31 — Segunda comparación contra `gentle-ai` (C1-C13) + features 13, 14, 16 (done)
+
+Segunda comparación independiente contra `/home/avalor/Proyectos/gentle-ai`
+(dos análisis sin contexto compartido) sumó 13 candidatos de metodología
+(C1-C13) a `ROADMAP.md`, atacados uno a uno con el humano. Resueltos
+todos:
+
+- **C1** → partido en features 13 y 14 (detalle abajo).
+- **C2** → adoptado como disciplina de test de caracterización (no el
+  shadow-flag de runtime de gentle-ai, que no traduce a un CLI
+  recompilado) — `docs/conventions.md`, criterio de acceptance de la
+  feature 14.
+- **C3** → convención + feature 15 (`blocked_reasons_remedy_commands`,
+  `pending`, sin ejecutar).
+- **C4** → disciplina anti-sobre-ingeniería, `CLAUDE.md`.
+- **C5** → corrección factual (ningún commit real del repo llevaba
+  `Co-Authored-By`, contra lo que afirmaba `ROADMAP.md` sin verificar) +
+  regla dura nueva: ningún agente ejecuta `git commit`, solo el humano.
+- **C6** → `reviewer_agent` persiste su "Formato de salida" en
+  `specs/<name>/verify-report.md` (solo `sdd: true`).
+- **C7** → límite de rollback en el reporte de `agent_developer`.
+- **C8, C10, C11** → documentados en `CLAUDE.md` ("Mecanismos
+  incorporados de April"), no en `docs/*.md` de la raíz — corregido un
+  desvío real detectado por el humano a mitad de sesión: esos tres
+  describen mecanismos que todo proyecto scaffoldeado hereda (ledger,
+  backups, `.claude/agents/*.md`), y `docs/*.md` de la raíz no está en
+  el `go:embed` de `scaffold.go`, así que nunca habría propagado. C2/C12
+  sí quedaron en `docs/conventions.md` (desarrollo del código Go de
+  April, nada que un proyecto scaffoldeado herede).
+- **C9** → descartado: los tests existentes (`TestCmdInitScaffoldsEmptyDir`)
+  ya cubren el mecanismo de embed que un golden file protegería; el
+  contenido vivo (`CLAUDE.md`) cambia demasiado seguido para que valga
+  la pena congelarlo.
+- **C12** → documentado sin tocar código: `doctor.go` ya tenía el patrón
+  de ratchet genérico (`Metrics map[string]int`, `evaluateDebtRatchet`
+  puro) — la premisa de "bespoke" no se sostuvo.
+- **C13** → descartado: su premisa (guiar el commit de `agent_developer`
+  por ticket) quedó contradicha por C5 en la misma sesión.
+
+**Hallazgo colateral, corregido:** verificando el `go:embed` para
+C8/C10/C11 se encontró que `.claude/verify-ledger.jsonl` (trackeado en
+git) no tenía guard de exclusión en `scaffold.go` — `april init` sobre
+un proyecto nuevo hubiera copiado el historial real de verify/review de
+este repo. Feature 16 lo corrigió (detalle abajo).
+
+### Feature 13 `spec_template_gwt_rfc2119` (done, 31/08/2026)
+
+Edición directa del orquestador en `.claude/agents/spec_writer.md`
+(mismo precedente que la feature 3: config/documentación de agente, sin
+`agent_developer`/`reviewer_agent`, aprobado por el humano contra el
+diff real). Agregó bloque Given/When/Then de ejemplo junto al formato
+Como/quiero/para en `## User Stories` (con la aclaración de que no se
+fuerza en historias sin rama verificable), e instrucción RFC 2119
+(MUST/SHOULD/MAY, con definición de qué rompe el acceptance) en
+`## Implementation Decisions`. Sin ledger — mismo patrón sin evidencia
+que la feature 3 (edición directa sin agente).
+
+### Feature 14 `spec_gwt_mechanical_check` (done, 31/08/2026)
+
+`computeBlockedReasons` (`status.go`) gana el chequeo `no_gwt_coverage`:
+para una feature `sdd:true` con spec existente, sin tickets todavía y
+`status != done`, exige al menos un bloque Given/When/Then (líneas que
+empiecen con `Given`/`When`/`Then`) o el marcador de opt-out
+`<!-- gwt: no aplica -->`. `doctor.go` hereda la señal sin código propio
+(ya copia `BlockedReasons` de `computeStatus(nil)`). 2 tickets: 01 (test
+de caracterización de las 6 features `sdd:true` `done` reales, sobre un
+fixture `fstest.MapFS` aislado por feature para evitar contaminación
+cruzada de `blockedReasons` global) y 02 (el chequeo real, TDD
+rojo→verde, 8 tests nuevos). Ajustó el fixture — no la aserción — de un
+test preexistente (`TestFeatureConSpecYSinTicketsEsFaseTickets`) para
+eliminar un confound no relacionado; `reviewer_agent` lo verificó
+reproduciendo el fallo real antes de aprobar. Revisión: `APPROVED` en la
+primera pasada sobre la feature completa (no ticket por ticket). 217
+tests.
+
+### Feature 16 `scaffold_excludes_verify_ledger` (done, 31/08/2026)
+
+Corrige el hallazgo colateral de la comparación contra gentle-ai: guard
+nuevo en `scaffold.go` (junto al ya existente para
+`.claude/manifest.json`) que excluye `.claude/verify-ledger.jsonl`
+(constante `verifyLedgerPath` de `verify.go`) de lo que `april init`
+propaga a un proyecto nuevo. Test `TestVerifyLedgerEmbebidoNuncaSePropaga`,
+análogo a `TestManifestJsonEmbebidoNuncaSePropaga`. Revisión: `APPROVED`
+en la primera pasada.
+
+### Lección de proceso — ledger no registrado antes de cerrar (31/08/2026)
+
+Las features 13 y 16 se marcaron `done` sin correr `april verify
+record`/`april review record` — se notó recién al cerrar la feature 14
+(primera vez en la sesión que se siguió el gate de cierre completo hasta
+el final). Para la 13 no aplica (edición directa, mismo patrón sin
+ledger que la feature 3, previa a que existiera el mecanismo). Para la
+16 sí era un gap real — se backfilleó con el `go test`/veredicto reales
+de esta sesión. Regla adoptada: registrar en el ledger real (binario
+reconstruido, no el de PATH) inmediatamente después del veredicto de
+`reviewer_agent`, antes de mover `feature_list.json` a `done`.
+
 ## 2026-08-28 — Sesión continuación (features 8-12, todas `done`, backlog cerrado)
 
 Continuación directa de la sesión anterior. Cerró las 5 features restantes

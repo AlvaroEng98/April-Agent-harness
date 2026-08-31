@@ -30,6 +30,13 @@ const (
 // phase").
 const bootstrapFeatureName = "bootstrap_project"
 
+// gwtOptOutMarker es el marcador de opt-out explícito que una spec puede
+// incluir en cualquier parte del archivo para declarar que ninguna de sus
+// historias de usuario tiene rama de comportamiento verificable — su sola
+// presencia basta, incluso si además hay bloques Given/When/Then reales
+// (ver specs/spec_gwt_mechanical_check/spec.md, "Marcador de opt-out").
+const gwtOptOutMarker = "<!-- gwt: no aplica -->"
+
 // ErrFeatureNotFound se devuelve cuando se pide el status de un id que no
 // existe en feature_list.json — es un error de invocación, no un
 // blockedReason (ver spec, "Resolución de id explícito").
@@ -154,12 +161,20 @@ func computeStatusFromFS(fsys fs.FS, targetID *int) (statusReport, error) {
 	// necesitan tanto blockedReasons (alcance global, todo feature_list.json)
 	// como la derivación de phase/artifactPaths de la feature target.
 	specExistsByFeature := map[string]bool{}
+	specSatisfiesGWTByFeature := map[string]bool{}
 	ticketsByFeature := map[string][]ticketInfo{}
 	for _, f := range fl.Features {
 		if !f.SDD {
 			continue
 		}
 		specExistsByFeature[f.Name] = fileExistsFS(fsys, specMdPath(f.Name))
+		if specExistsByFeature[f.Name] {
+			specContent, err := fs.ReadFile(fsys, specMdPath(f.Name))
+			if err != nil {
+				return statusReport{}, fmt.Errorf("leyendo %s: %w", specMdPath(f.Name), err)
+			}
+			specSatisfiesGWTByFeature[f.Name] = specSatisfiesGWT(string(specContent))
+		}
 		tickets, err := readTickets(fsys, f.Name)
 		if err != nil {
 			return statusReport{}, err
@@ -176,7 +191,7 @@ func computeStatusFromFS(fsys fs.FS, targetID *int) (statusReport, error) {
 		return statusReport{}, fmt.Errorf("calculando hashTree del árbol actual: %w", err)
 	}
 
-	blockedReasons := computeBlockedReasons(fl, validStatus, specExistsByFeature, ticketsByFeature, ledgerEntries, corruptLedgerLines, currentTreeHash)
+	blockedReasons := computeBlockedReasons(fl, validStatus, specExistsByFeature, specSatisfiesGWTByFeature, ticketsByFeature, ledgerEntries, corruptLedgerLines, currentTreeHash)
 
 	target, err := selectTarget(fl.Features, targetID)
 	if err != nil {
@@ -299,9 +314,12 @@ func firstByStatusSortedByID(features []featureEntry, status string) *featureEnt
 // desactualizada para la feature in_progress (no_test_evidence); (ticket 02,
 // specs/review_verdict_recorded/spec.md) veredicto de revisión faltante,
 // que no habilita cierre, o desactualizado para la feature in_progress
-// (no_review_verdict); más cualquier línea corrupta del ledger, reportada
+// (no_review_verdict); (ticket 02, specs/spec_gwt_mechanical_check/spec.md)
+// spec aprobada sin ningún bloque Given/When/Then ni marcador de opt-out,
+// todavía sin tickets en disco, para una feature que no está done
+// (no_gwt_coverage); más cualquier línea corrupta del ledger, reportada
 // aparte.
-func computeBlockedReasons(fl featureListFile, validStatus map[string]bool, specExistsByFeature map[string]bool, ticketsByFeature map[string][]ticketInfo, ledgerEntries []ledgerEntry, corruptLedgerLines []string, currentTreeHash string) []string {
+func computeBlockedReasons(fl featureListFile, validStatus map[string]bool, specExistsByFeature map[string]bool, specSatisfiesGWTByFeature map[string]bool, ticketsByFeature map[string][]ticketInfo, ledgerEntries []ledgerEntry, corruptLedgerLines []string, currentTreeHash string) []string {
 	reasons := []string{}
 
 	inProgressCount := 0
@@ -325,6 +343,9 @@ func computeBlockedReasons(fl featureListFile, validStatus map[string]bool, spec
 		}
 		if f.Status == "blocked" {
 			reasons = append(reasons, fmt.Sprintf("feature %d (%s) está marcada blocked", f.ID, f.Name))
+		}
+		if f.SDD && specExistsByFeature[f.Name] && len(ticketsByFeature[f.Name]) == 0 && f.Status != "done" && !specSatisfiesGWTByFeature[f.Name] {
+			reasons = append(reasons, fmt.Sprintf("feature %d (%s) tiene %s sin ningún bloque Given/When/Then ni el marcador %s (no_gwt_coverage)", f.ID, f.Name, specMdPath(f.Name), gwtOptOutMarker))
 		}
 		if f.Status == "in_progress" {
 			if reason := noTestEvidenceReason(f, ledgerEntries, currentTreeHash); reason != "" {
@@ -429,6 +450,36 @@ func noReviewVerdictReason(f featureEntry, entries []ledgerEntry, currentTreeHas
 		return fmt.Sprintf("feature %d (%s) está in_progress pero el treeHash de su último receipt kind:review (%s) no coincide con el árbol actual (%s) — el código cambió después del veredicto registrado (no_review_verdict)", f.ID, f.Name, last.TreeHash, currentTreeHash)
 	}
 	return ""
+}
+
+// specSatisfiesGWT decide si el contenido de un spec.md satisface el
+// requisito de cobertura Given/When/Then (ver
+// specs/spec_gwt_mechanical_check/spec.md, "Detección del bloque
+// Given/When/Then"): o bien el archivo completo contiene el marcador de
+// opt-out gwtOptOutMarker en cualquier parte (basta por sí solo, incluso
+// con GWT real presente — la redundancia no se arbitra), o bien tiene, en
+// cualquier parte del archivo, al menos una línea que empieza (ignorando
+// espacios en blanco iniciales) literalmente con "Given", al menos una con
+// "When" y al menos una con "Then" — sensible a mayúsculas/minúsculas, sin
+// exigir adyacencia ni orden relativo entre ellas.
+func specSatisfiesGWT(content string) bool {
+	if strings.Contains(content, gwtOptOutMarker) {
+		return true
+	}
+
+	var hasGiven, hasWhen, hasThen bool
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimLeft(line, " \t")
+		switch {
+		case strings.HasPrefix(trimmed, "Given"):
+			hasGiven = true
+		case strings.HasPrefix(trimmed, "When"):
+			hasWhen = true
+		case strings.HasPrefix(trimmed, "Then"):
+			hasThen = true
+		}
+	}
+	return hasGiven && hasWhen && hasThen
 }
 
 func isValidTicketStatus(s string) bool {
