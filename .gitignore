@@ -35,12 +35,6 @@ ANALISIS.md
 mejoras.md
 RECAP_*.md
 
-# docs/ del propio harness es estado de trabajo (Grill de bootstrap_project
-# de este mismo repo), no producto — igual que /feature_list.json. Anclado
-# con "/" para no tragarse templates/docs/*.md, que SI va versionado porque
-# go:embed lo necesita para scaffoldear.
-/docs/
-
 # .claude/manifest.json es estado de trabajo (last-applied-configuration de
 # april init sobre ESTE repo), no producto. Si se generara aquí por error, el
 # go:embed de scaffold.go lo empotraría y lo propagaría a todos los destinos
@@ -63,7 +57,11 @@ RECAP_*.md
 
 GUIA-INTEGRACION-SKILLS.md
 
-specs/
+# specs/ NO va acá (a diferencia de templates/.gitignore, que sí la
+# ignora para proyectos scaffoldeados): en ESTE repo specs/ es la
+# documentación SDD real exigida por CLAUDE.md (require_approved_spec_to_implement),
+# no estado de trabajo descartable. Ver docs/conventions.md. (feature 17,
+# gitignore_root_tracks_specs)
 tests/
 /session-handoff.md
 

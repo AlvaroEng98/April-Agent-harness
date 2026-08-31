@@ -2,6 +2,57 @@
 
 <!-- Append-only log. Most recent at the top. -->
 
+## 2026-08-31 (continuación) — Fix de dos bugs reales de `.gitignore`: features 17, 18 (done)
+
+El humano pegó un log real de CI de GitHub Actions mostrando que
+`TestCaracterizacionFeaturesSddDoneAntesDeComputeBlockedReasons`
+(feature 14, ticket 01) fallaba con `no such file or directory` sobre
+`specs/<name>/spec.md` para las 6 features `sdd:true` `done`. Investigando
+la causa raíz se encontraron dos bugs hermanos en el `.gitignore` de la
+**raíz** de este repo (no confundir con `templates/.gitignore`, que sí es
+correcto tal cual está):
+
+### Feature 17 `gitignore_root_tracks_specs` (done, 31/08/2026)
+
+Causa raíz: la línea `specs/` del `.gitignore` de la raíz era una copia
+literal de `templates/.gitignore` (correcta ahí — un proyecto
+scaffoldeado nuevo trata sus specs como estado de trabajo descartable),
+pero incorrecta en este propio repo, donde `specs/*.md` es la
+documentación SDD real que `CLAUDE.md` exige
+(`require_approved_spec_to_implement`). Confirmado con `git ls-files
+specs/` (vacío): ninguna de las 7 specs existentes (6 de features `done`
++ `spec_gwt_mechanical_check` de esta sesión) estuvo nunca en git — de
+ahí la falla en CI (checkout limpio sin esos archivos) que no se veía en
+local (archivos presentes en el filesystem de cada desarrollador). Fix:
+se sacó la línea `specs/` del `.gitignore` de la raíz (`templates/.gitignore`
+sin tocar); verificado con `git check-ignore -v` contra las 7 specs
+reales, ninguna matchea ya. Nota nueva en `docs/conventions.md`
+("`templates/.gitignore` vs `.gitignore` de la raíz — no son el mismo
+target"). Revisión: `APPROVED` en la primera pasada.
+
+### Feature 18 `gitignore_root_tracks_docs` (done, 31/08/2026)
+
+Hallazgo hermano, encontrado por `reviewer_agent` al revisar la feature
+17: `/docs/` también estaba en el `.gitignore` de la raíz — pero a
+diferencia del bug de `specs/`, esta regla fue agregada **a propósito**
+en el commit `3c24d6b` (24/08/2026) bajo el razonamiento "`docs/` es
+estado de trabajo... igual que `/feature_list.json`". El humano
+determinó que ese razonamiento no se sostiene: `docs/conventions.md`/
+`docs/verification.md` son documentación acumulada citada repetidamente
+como fuente de verdad vinculante (no estado operativo descartable como
+`feature_list.json`) — misma naturaleza que `specs/*.md`. Verificado con
+`git log --diff-filter=D -- "docs/*.md"`: esos archivos SÍ estuvieron
+trackeados hasta el 24/08, cuando se sacaron del tracking junto con
+agregar la regla. Fix: mismo tratamiento que la feature 17, con nota
+"hermana" en `docs/conventions.md` documentando que la causa esta vez
+fue un razonamiento que dejó de aplicar, no un copy-paste. Revisión:
+`APPROVED` en la primera pasada.
+
+**Pendiente del humano tras ambas features (ninguna la ejecuta un
+agente, regla dura de este repo):** `git add specs/ docs/ && git commit`
+para que las specs y la documentación por fin queden versionadas y CI
+deje de fallar.
+
 ## 2026-08-31 — Segunda comparación contra `gentle-ai` (C1-C13) + features 13, 14, 16 (done)
 
 Segunda comparación independiente contra `/home/avalor/Proyectos/gentle-ai`
