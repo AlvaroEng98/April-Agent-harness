@@ -8,27 +8,24 @@
   buscando metodología NO cubierta por la primera comparación
   (`ROADMAP.md` E0-E6). Resultado: 13 candidatos (C1-C13), agregados a
   `ROADMAP.md` para atacarlos uno a uno con el humano.
-- Current status: **backlog base (features 1-12) sigue `done`**. Se
-  sumaron 3 features nuevas en `pending` (13, 14, 15) derivadas de C1 y
-  C3, más la **feature 16 (`scaffold_excludes_verify_ledger`), ya
-  ejecutada y cerrada `done` esta misma sesión** (ver más abajo).
-  **Los 13 candidatos (C1-C13) ya están resueltos** (ver detalle abajo)
-  — la segunda comparación contra `gentle-ai` está cerrada. **Feature 13
-  (`spec_template_gwt_rfc2119`) ejecutada y cerrada `done`** esta misma
-  sesión — edición directa del orquestador, diff aprobado por el humano.
-  **Feature 14 (`spec_gwt_mechanical_check`) ejecutada completa y
-  cerrada `done`** esta misma sesión: spec aprobada, 2 tickets
-  implementados (`agent_developer`, uno por uno), `reviewer_agent`
-  APPROVED sobre la feature completa, evidencia registrada en el ledger
-  real (`april verify record`/`april review record`), cierre aprobado
-  por el humano.
-- Branch / commit: `main`. Los cambios de esta sesión (`docs/*.md`,
-  `CLAUDE.md`, `.claude/agents/*.md`, `ROADMAP.md`, `feature_list.json`,
-  `progress/*`, `scaffold.go`/`scaffold_test.go`, `status.go`/
-  `status_test.go`/`doctor_test.go`, `specs/spec_gwt_mechanical_check/`,
-  `.claude/verify-ledger.jsonl`) están sin commitear — el orquestador
-  **nunca** ejecuta `git commit` (regla de esta sesión, ver "Decisions
-  Made"); el humano commitea cuando decida.
+- Current status: **backlog completo: features 1-14 y 16-18 `done`**;
+  solo la **feature 15** (`blocked_reasons_remedy_commands`, `sdd: true`)
+  sigue `pending`, sin bloqueos. La segunda comparación contra
+  `gentle-ai` (C1-C13) está cerrada. En una **continuación de la misma
+  sesión**, el humano pegó un log real de CI de GitHub Actions mostrando
+  un test roto; investigar la causa raíz encontró y corrigió dos bugs
+  reales de `.gitignore` (features 17 y 18, detalle abajo).
+- Branch / commit: `main`. El grueso del trabajo de C1-C13 + features
+  13/14/16 **ya está commiteado** (`cfd4dd0`, por el humano). Sin
+  commitear todavía: `.gitignore` (features 17+18),
+  `.claude/verify-ledger.jsonl` (evidencia de las features 14/16/17/18),
+  `progress/current.md`/`progress/history.md` (esta consolidación), y
+  — importante — **`docs/*.md` y `specs/**/*.md` aparecen como `??`
+  (untracked) por primera vez**: el fix de las features 17/18 los sacó
+  del `.gitignore`, pero nadie corrió `git add` todavía (el orquestador
+  nunca lo hace). El humano debe correr `git add specs/ docs/
+  .gitignore .claude/verify-ledger.jsonl progress/ && git commit` para
+  cerrar esto.
 
 ## Completed This Session (31/08/2026)
 
@@ -215,11 +212,46 @@
       `## Implementation Decisions`. Ningún `specs/*/spec.md` existente
       tocado. Humano revisó el diff real (`git diff`) y aprobó el
       cierre.
+- [x] **Continuación de sesión — hallazgo por log de CI:** el humano
+      pegó un log real de GitHub Actions mostrando
+      `TestCaracterizacionFeaturesSddDoneAntesDeComputeBlockedReasons`
+      (feature 14) fallando en CI con `no such file or directory` sobre
+      `specs/<name>/spec.md` para las 6 features `done`. Investigada la
+      causa raíz: dos bugs reales en el `.gitignore` de la **raíz** de
+      este repo (no `templates/.gitignore`, que está bien tal cual).
+- [x] **Feature 17** (`gitignore_root_tracks_specs`) — **ejecutada y
+      cerrada `done` (31/08/2026)**. Causa: la línea `specs/` del
+      `.gitignore` de la raíz era copia literal de `templates/.gitignore`
+      (correcta ahí — proyecto scaffoldeado nuevo, `specs/` es estado de
+      trabajo descartable), incorrecta en este propio repo, donde
+      `specs/*.md` es la documentación SDD real que `CLAUDE.md` exige.
+      `git ls-files specs/` confirmó que ninguna de las 7 specs
+      existentes estuvo nunca en git. Fix: se sacó la línea de la raíz,
+      verificado con `git check-ignore -v` contra las 7 specs reales
+      (ninguna matchea ya). Nota nueva en `docs/conventions.md`.
+      `reviewer_agent`: **APPROVED**. Ledger registrado
+      (`april verify record`/`april review record --feature 17`).
+- [x] **Feature 18** (`gitignore_root_tracks_docs`) — **ejecutada y
+      cerrada `done` (31/08/2026)**. Hallazgo hermano de la 17,
+      encontrado por `reviewer_agent` al revisar esa feature: `/docs/`
+      también estaba en el `.gitignore` de la raíz — pero a diferencia
+      de `specs/`, esta regla se agregó **a propósito** (commit
+      `3c24d6b`, 24/08/2026) bajo el razonamiento "`docs/` es estado de
+      trabajo... igual que `/feature_list.json`". El humano determinó
+      que ese razonamiento no se sostiene: `docs/conventions.md`/
+      `docs/verification.md` son documentación vinculante citada
+      repetidamente esta sesión, no estado operativo descartable.
+      `git log --diff-filter=D -- "docs/*.md"` confirmó que esos
+      archivos estuvieron trackeados hasta el 24/08, cuando se sacaron
+      del tracking junto con la regla. Fix: mismo tratamiento que la 17,
+      nota "hermana" en `docs/conventions.md`. `reviewer_agent`:
+      **APPROVED**. Ledger registrado (`--feature 18`).
 
 Ver `ROADMAP.md` (sección "Segunda comparación") para el detalle completo
-de cada candidato, y `progress/history.md` (sección "2026-08-31") para
-la bitácora completa ya consolidada — `progress/current.md` se reseteó
-al cerrar esta sesión, queda limpio para la feature 15.
+de cada candidato de C1-C13, y `progress/history.md` (secciones
+"2026-08-31" y "2026-08-31 (continuación)") para la bitácora completa ya
+consolidada — `progress/current.md` se reseteó al cerrar esta sesión,
+queda limpio para la feature 15.
 
 ## Verification Evidence
 
@@ -240,6 +272,11 @@ resuelto fue documentación/config de agentes, o edición directa de
 | `april verify record --feature 14 -- go test ./...` / `april review record --feature 14 --verdict APPROVED` | registrado en `.claude/verify-ledger.jsonl`, `treeHash` compartido |
 | `april status --json 14` (tras registrar) | `blockedReasons: []` |
 | Backfill: `april verify record --feature 16 -- ...` / `april review record --feature 16 --verdict APPROVED` | registrado (ver "Decisions Made", gap de proceso) |
+| `git check-ignore -v` contra las 7 specs reales (feature 17, corrido por `agent_developer` y de nuevo por `reviewer_agent` sobre las 7, no solo 1) | ninguna matchea |
+| `git check-ignore -v` contra `docs/{architecture,conventions,specs,verification}.md` (feature 18, ídem) | ninguno matchea |
+| `git diff --stat -- templates/.gitignore` (features 17 y 18) | vacío — sin cambios, confirmado que el template sigue correcto |
+| `go build ./...`/`go test ./...` (features 17 y 18) | verde ambas veces |
+| `april verify record`/`april review record --feature 17` y `--feature 18` | registrados en el ledger, `blockedReasons: []` para ambas |
 
 ## Files Changed (esta sesión)
 
@@ -288,9 +325,16 @@ resuelto fue documentación/config de agentes, o edición directa de
   nuevo que persiste `specs/<name>/verify-report.md` (C6).
 - `.claude/agents/agent_developer.md` — bullet de límite de rollback en
   el reporte (C7); bullet de "nunca `git commit`" (C5).
-- `progress/history.md` — consolidada la sección "2026-08-31" con el
-  detalle de C1-C13, features 13/14/16 y la lección de proceso del
-  ledger. `progress/current.md` reseteado, listo para la feature 15.
+- `progress/history.md` — consolidada la sección "2026-08-31" (C1-C13,
+  features 13/14/16, lección de proceso del ledger) y "2026-08-31
+  (continuación)" (features 17/18). `progress/current.md` reseteado,
+  listo para la feature 15.
+- `.gitignore` — eliminada la línea `specs/` (feature 17) y el bloque
+  `/docs/` (feature 18) de la raíz de este repo. `templates/.gitignore`
+  sin tocar en ninguna de las dos.
+- `docs/conventions.md` — dos secciones nuevas: "`templates/.gitignore`
+  vs `.gitignore` de la raíz — no son el mismo target" (feature 17) y su
+  "Hallazgo hermano: `/docs/`" (feature 18).
 
 ## Decisions Made
 
@@ -334,29 +378,49 @@ resuelto fue documentación/config de agentes, o edición directa de
   16 se habían cerrado sin esto (13 correctamente exenta por ser edición
   directa sin agente; 16 backfilleada por ser un gap real). Ver bullet
   de "Gap de proceso" en "Completed This Session".
+- **`templates/.gitignore` y el `.gitignore` de la raíz tienen targets
+  distintos — nunca copiar una línea de uno a otro sin revalidar el
+  contexto.** Confirmado el 31/08/2026 (continuación) tras encontrar dos
+  bugs reales: `specs/` (copy-paste accidental, feature 17) y `/docs/`
+  (razonamiento que dejó de sostenerse, feature 18) excluían del
+  `.gitignore` de la raíz documentación vinculante real de este repo.
+  Documentado en `docs/conventions.md`.
 
 ## Blockers / Risks
 
-- Ninguno técnico — features 13, 14 y 16 cerradas, backlog vuelve a no
-  tener ninguna feature `in_progress`.
+- Ninguno técnico — backlog completo (1-14, 16-18) `done`, ninguna
+  feature `in_progress`.
 - Segunda comparación contra `gentle-ai` **cerrada** (C1-C13 resueltos).
 - Solo queda **feature 15** (`blocked_reasons_remedy_commands`) en
   `pending`, `sdd: true`, independiente — nunca estuvo bloqueada.
   Requiere `spec_writer` antes de tickets/implementación.
+- **Acción pendiente del humano, no de ningún agente:** correr `git add
+  specs/ docs/ .gitignore .claude/verify-ledger.jsonl progress/ && git
+  commit` — las specs y la documentación de este repo aparecen `??`
+  (untracked) por primera vez tras el fix de las features 17/18, y el
+  ledger/progress de esta sesión tampoco está commiteado todavía. Sin
+  esto, CI sigue fallando exactamente como mostró el log que motivó
+  estas dos features.
 
 ## Next Session Startup
 
 1. Leer `AGENTS.md`/`CLAUDE.md` (ya incluye las reglas nuevas de esta
    sesión: nunca commitear, disciplina anti-sobre-ingeniería,
    responsabilidad humana, "Mecanismos incorporados de April").
-2. Correr `./init.sh` — debe estar en verde.
-3. Correr `april status --json` — debe reportar `phase: closed` (la
+2. Verificar si el humano ya corrió `git add specs/ docs/ .gitignore
+   .claude/verify-ledger.jsonl progress/ && git commit` (ver "Blockers /
+   Risks") — si no, recordárselo antes de asumir que CI está en verde.
+3. Correr `./init.sh` — debe estar en verde.
+4. Correr `april status --json` — debe reportar `phase: closed` (la
    única feature no cerrada, 15, sigue en `pending`, no `in_progress`).
-4. Preguntar al humano: ¿arrancar la feature 15 (Fase Spec), o hay algo
+5. Preguntar al humano: ¿arrancar la feature 15 (Fase Spec), o hay algo
    más para revisar antes?
 
 ## Recommended Next Step
 
+- Confirmar que el commit de `specs/`+`docs/` ya se hizo (ver Blockers)
+  — sin eso, cualquier CI que corra sigue fallando igual que el log que
+  disparó las features 17/18.
 - Único trabajo de backlog restante: feature 15
   (`blocked_reasons_remedy_commands`) — lanzar `spec_writer` para
   arrancar su Fase Spec, mismo patrón ya usado con la feature 14 en esta
