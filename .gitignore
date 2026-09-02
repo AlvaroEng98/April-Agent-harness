@@ -21,10 +21,6 @@ venv/
 *.exe
 
 # Project — estado de trabajo del harness (dev, no producto).
-# El backlog vivo no se versiona: el registro de lo entregado va a
-# CHANGELOG.md via ./sync-changelog.sh. Anclado con "/" para no tragarse
-# templates/feature_list.json, que SI va versionado (lo necesita go:embed).
-/feature_list.json
 progress/*.md
 progress/current.md
 progress/history.md

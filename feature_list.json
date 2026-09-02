@@ -1,0 +1,361 @@
+{
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "require_review_to_close": true,
+    "valid_status": [
+      "pending",
+      "spec_ready",
+      "in_progress",
+      "done",
+      "blocked"
+    ],
+    "human_approval_required_to_close": true,
+    "sdd_required_when": "feature has \"sdd\": true",
+    "flows_and_challenge_gates": "ver CLAUDE.md — fuente única, no la dupliques aquí"
+  },
+  "features": [
+    {
+      "id": 1,
+      "name": "bootstrap_project",
+      "title": "Definir el proyecto y poblar el backlog",
+      "description": "El orquestador conduce la FASE Grill, escribe progress/project-definition.md, rellena los placeholders de los ficheros auxiliares (docs/) y lanza planner_agent para descomponer el backlog.",
+      "sdd": false,
+      "acceptance": [
+        "progress/project-definition.md existe con ## Objetivo y ## Tech stack rellenos (no _pendiente_)",
+        "docs/architecture.md, docs/conventions.md y docs/verification.md tienen sus secciones rellenas por el Grill (sin _pendiente_ donde el humano ya respondió)",
+        "feature_list.json tiene al menos una feature de producto en pending con id >= 2",
+        "El humano aprobó el backlog antes de cerrar esta feature"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "april_status_arbiter",
+      "title": "april status — árbitro que deriva el estado de fase leyendo el disco",
+      "description": "Nuevo comando `april status [feature] --json` que calcula phase/nextRecommended/blockedReasons/frontier/artifactPaths leyendo feature_list.json, specs/<name>/spec.md y specs/<name>/tickets/*.md (Status, Blocked by) — sin confiar en narración del agente. Opera en modo advisory (informa, no escribe feature_list.json — decisión ROADMAP.md del 26/08/2026). Absorbe el bloque Python de init.sh. Bloqueada por: feature 1 (docs/ con contenido real).",
+      "sdd": true,
+      "acceptance": [
+        "april status --json existe y devuelve JSON válido con phase, nextRecommended, blockedReasons, frontier, artifactPaths",
+        "Feature sdd:true sin specs/<name>/spec.md ⇒ phase: \"spec\"",
+        "Feature con spec aprobada y sin tickets ⇒ phase: \"tickets\"",
+        "Dos features en in_progress ⇒ blockedReasons no vacío",
+        "Ciclo en Blocked by de tickets (test que arma A→B→A) ⇒ detectado y reportado en blockedReasons, no cuelga el comando",
+        "frontier lista exactamente los tickets con todos sus Blocked by en done y Status ≠ done",
+        "init.sh ya no contiene el heredoc python3 de validación; invoca april status en su lugar",
+        "El comando no escribe ningún archivo (hashes antes/después idénticos)",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "name": "claude_md_routes_by_status",
+      "title": "CLAUDE.md enruta por april status, no por inferencia de prosa",
+      "description": "Reemplaza en CLAUDE.md el paso 'ejecuta la fase que toque según el estado' por instrucción explícita de correr april status --json y enrutar solo por nextRecommended/blockedReasons. Edición pura de CLAUDE.md (documentación/configuración) — el humano confirmó (26/08/2026) que la implementa el orquestador directamente, sin pasar por agent_developer/reviewer_agent; no aplican require_tests_to_close ni require_review_to_close en el sentido estándar. Bloqueada por: feature 2.",
+      "sdd": false,
+      "acceptance": [
+        "CLAUDE.md instruye explícitamente correr april status --json en el paso \"Ejecutar la fase que toque\"",
+        "Contiene la prohibición explícita \"nunca infieras la fase leyendo texto/prosa\"",
+        "Indica que si blockedReasons no está vacío, se reportan y se detiene sin avanzar de fase",
+        "El resto del contenido normativo de CLAUDE.md no cambia de significado — diff acotado a esa sección",
+        "El humano revisó y aprobó el diff antes de cerrar"
+      ],
+      "status": "done"
+    },
+    {
+      "acceptance": [
+        "set-status <id> in_progress falla si ya hay otra feature in_progress",
+        "set-status <id> done falla si no hay veredicto de review registrado para esa feature",
+        "Transiciones fuera del grafo (ej. pending → done directo) rechazadas con error explícito",
+        "Transiciones válidas actualizan feature_list.json correctamente",
+        "Existe, en session-handoff.md o progress/, un registro explícito de que el humano confirmó — tras uso real de las features 2 y 3 — que el modelo de fases es confiable",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "april feature set-status <id> <estado> valida la transición contra el grafo pending → spec_ready → in_progress → done (+ blocked), rechaza segundo in_progress y rechaza done sin veredicto registrado. Punto de no retorno de la decisión ROADMAP.md \"B llegando por A\" (26/08/2026): no se activa (no pasa a in_progress) hasta que el humano confirme explícitamente, en session-handoff.md o progress/, que el modelo de fases de las features 2 y 3 resultó confiable en uso real. Bloqueada por: features 2, 3 y esa confirmación humana explícita.",
+      "id": 4,
+      "name": "set_status_authoritative_write",
+      "reviewVerdict": "APPROVED_WITH_OBJECTION",
+      "sdd": false,
+      "status": "done",
+      "title": "april feature set-status — única vía de escritura válida"
+    },
+    {
+      "acceptance": [
+        "Anexa una entrada al ledger con comando, exit code, hash del árbol, timestamp",
+        "Ledger append-only: dos corridas producen dos entradas, no sobrescribe",
+        "Último receipt con exit code ≠ 0 (o inexistente) ⇒ april status <id> --json incluye \"no_test_evidence\"",
+        "Último receipt exit 0 sobre el árbol actual ⇒ no incluye no_test_evidence",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "april verify record --feature <id> -- <comando> corre el comando, captura exit code/salida/hash del árbol y hace append a un ledger. april status lee ese ledger: sin receipt en verde ⇒ blockedReasons incluye no_test_evidence. Bloqueada por: feature 2 (técnica); puede paralelizarse con la feature 4 mientras esta espera el gate humano.",
+      "id": 5,
+      "name": "verify_record_ledger",
+      "reviewVerdict": "APPROVED",
+      "sdd": true,
+      "status": "done",
+      "title": "april verify record — evidencia de tests como ledger, no narración"
+    },
+    {
+      "acceptance": [
+        "Subcomando (ej. april review record --feature <id> --verdict <...>) anexa el veredicto al ledger con timestamp y hash del árbol",
+        "april status <id> --json reporta blockedReasons con \"no_review_verdict\" si no hay APPROVED/APPROVED_WITH_OBJECTION registrado contra el árbol actual",
+        "CHANGES_REQUESTED registrado no habilita cierre",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "Extiende el ledger de la feature 5 para admitir el veredicto de reviewer_agent (APPROVED/APPROVED_WITH_OBJECTION/CHANGES_REQUESTED) como entrada registrada, consultable por april status para require_review_to_close. Bloqueada por: feature 5.",
+      "id": 6,
+      "name": "review_verdict_recorded",
+      "reviewVerdict": "APPROVED",
+      "sdd": true,
+      "status": "done",
+      "title": "Veredicto de reviewer_agent registrado en el ledger, no narrado"
+    },
+    {
+      "acceptance": [
+        "april review start --feature <id> devuelve subject_hash determinista (mismo árbol ⇒ mismo hash)",
+        "Registrar veredicto con subject_hash que no coincide con el árbol actual ⇒ rechazado explícitamente (\"stale subject_hash\")",
+        "Registrar veredicto con subject_hash vigente ⇒ admitido normalmente",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "april review start ejecuta git write-tree (o equivalente) y devuelve un subject_hash. El veredicto se registra contra ese hash; si el árbol cambió mientras se revisaba, no se admite. Bloqueada por: feature 6 (necesita el mecanismo de registro de veredicto para validar contra él).",
+      "id": 7,
+      "name": "review_frozen_candidate",
+      "reviewVerdict": "APPROVED",
+      "sdd": true,
+      "status": "done",
+      "title": "april review start — candidato congelado (subject_hash)"
+    },
+    {
+      "acceptance": [
+        "docs/conventions.md tiene sección explícita de \"áreas sensibles\" — precondición de la feature 1; si falta, esta feature no puede cerrar",
+        "april review start reporta la lista de rutas/paquetes tocados por el diff respecto al estado anterior",
+        "Si el diff toca una ruta sensible, el output marca explícitamente el requisito adicional (ej. \"extra_review_required\": true)",
+        "Si no toca ninguna ruta sensible, no se exige el paso adicional",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "april review start reporta, junto al subject_hash, qué rutas/paquetes tocó el diff, y exige pasos adicionales si tocó áreas marcadas como sensibles en docs/conventions.md. Bloqueada por: feature 7, y por que docs/conventions.md tenga sección de \"áreas sensibles\" (puede requerir reabrir la feature 1 si el Grill no la cubrió).",
+      "id": 8,
+      "name": "review_depth_by_diff_sensitivity",
+      "reviewVerdict": "APPROVED",
+      "sdd": true,
+      "status": "done",
+      "title": "Profundidad de revisión ajustada según qué tocó el diff"
+    },
+    {
+      "acceptance": [
+        "april doctor sin drift ⇒ exit 0",
+        "Archivo gestionado por el manifiesto borrado/alterado fuera de flujo ⇒ reportado explícitamente (archivo + tipo de drift), exit ≠ 0",
+        "Reporta agentes encontrados en .claude/agents/ (mismo chequeo que hoy hace init.sh en bash)",
+        "No escribe/borra/modifica ningún archivo (hashes antes/después idénticos)",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "Compara .claude/manifest.json contra disco, detecta drift, verifica agentes presentes en .claude/agents/, y consulta april status para reportar salud general. Read-only. Bloqueada por: feature 2 (reutiliza april status).",
+      "id": 9,
+      "name": "doctor_readonly_check",
+      "reviewVerdict": "APPROVED_WITH_OBJECTION",
+      "sdd": false,
+      "status": "done",
+      "title": "april doctor — chequeo read-only de salud del entorno"
+    },
+    {
+      "acceptance": [
+        "Correr april init sobre un directorio ya scaffoldeado genera backup antes de aplicar cambios",
+        "El backup contiene copia fiel de todos los archivos que applyPlan va a tocar",
+        "Si applyPlan falla a mitad de camino, el backup queda íntegro y localizable (documentar si el rollback es manual o automático)",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "Antes de que applyPlan sobrescriba/borre archivos según el manifiesto, genera un backup del estado actual del directorio destino. Sin bloqueos — toca scaffold.go/applyPlan, independiente del árbitro; puede desarrollarse en paralelo a la feature 9.",
+      "id": 10,
+      "name": "init_backup_before_apply",
+      "reviewVerdict": "APPROVED",
+      "sdd": false,
+      "status": "done",
+      "title": "april init hace backup antes de applyPlan"
+    },
+    {
+      "acceptance": [
+        "Al menos una métrica de deuda medible implementada (ej. conteo de TODOs sin feature asociada)",
+        "Primera corrida sin baseline: congela el valor actual, no falla por deuda existente",
+        "Corrida posterior con métrica ≤ baseline: no falla por esta causa",
+        "Corrida posterior con métrica > baseline: falla explícitamente, señalando métrica y delta",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "Si el repo acumula deuda medible (código muerto, TODOs sin feature asociada — ver C3 en CHECKPOINTS.md), april doctor congela un baseline y falla solo si la métrica crece frente a él. Bloqueada por: feature 9 (extiende april doctor).",
+      "id": 11,
+      "name": "doctor_debt_ratchet",
+      "reviewVerdict": "APPROVED",
+      "sdd": false,
+      "status": "done",
+      "title": "Ratchet de calidad progresiva en april doctor"
+    },
+    {
+      "acceptance": [
+        "Existe un archivo no rastreado por git y gitignored en la raíz del repo (ej. un binario producido por `go build ./...`, o cualquier ruta cubierta por un patrón real de .gitignore) tal que: generarlo/modificarlo DESPUÉS de un `april verify record` o `april review record` no cambia el resultado de un `hashTree`/`computeSubjectHash` posterior frente al registrado — es decir, el treeHash o subjectHash calculado antes y después de correr `go build ./...` es idéntico si el único cambio en el árbol es ese artefacto gitignorado",
+        "El comportamiento anterior es automático: no depende de que quien opera recuerde correr `go build ./...` antes de `verify record`/`review record` en vez de después — se verifica corriendo ambos órdenes (build-luego-record y record-luego-build) sobre el mismo estado de código y confirmando que en ambos casos `april status --json` no reporta no_test_evidence/no_review_verdict por ese motivo",
+        "Un archivo NO gitignorado (ej. un .go tocado deliberadamente) sigue cambiando el hash como hoy — la corrección no vuelve a hashTree/computeSubjectHash ciegos a cambios reales de código",
+        "Las tres exclusiones ya fijas (.claude/verify-ledger.jsonl, .git/, progress/) se preservan explícitamente por su motivo original (auto-invalidación del propio ledger) — no dependen únicamente de estar en .gitignore, si es que no lo están",
+        "Los tests existentes de hashTree en verify_test.go (TestHashTreeExcluyeGitProgressYElPropioLedger, TestHashTreeCambiaSiUnArchivoNoExcluidoCambia, TestHashTreeEsDeterministicoSinImportarOrden) y de computeSubjectHash en review_test.go (TestComputeSubjectHashDeterministicoMismoArbolMismoHash, TestComputeSubjectHashCambiaSiElArbolCambia, TestComputeSubjectHashExcluyeLedgerYProgress, TestComputeSubjectHashFallaSiNoEsRepositorioGit, TestComputeSubjectHashFallaSiGitNoEstaEnPath, TestComputeSubjectHashNoMutaElIndiceReal, TestComputeSubjectHashNoDejaArchivoTemporalHuerfano) siguen pasando sin editarlos",
+        "Al menos un test nuevo prueba explícitamente el caso HarnessInit/binario de build: generar el binario, calcular hash, borrar/regenerar el binario con contenido distinto (mismo build), recalcular hash, y verificar que ambos hashes coinciden",
+        "go build ./... y go test ./... en verde"
+      ],
+      "description": "isExcludedFromTreeHash (verify.go:87-98) y la exclusión equivalente que aplica computeSubjectHash (review.go:59, vía 'git rm --cached') solo excluyen .claude/verify-ledger.jsonl, .git/ y progress/ — ignoran por completo .gitignore. Como docs/verification.md exige correr `go build ./...` en el ciclo de verificación, y ese comando reescribe binarios en la raíz del repo que SÍ están gitignorados (ej. /HarnessInit) pero NO excluidos del hash, cualquier build corrido después de un `verify record`/`review record` cambia el treeHash e invalida esa evidencia (blockedReasons vuelve a mostrar no_test_evidence/no_review_verdict sin que el código haya cambiado). Ya pasó y se resolvió a mano reordenando pasos en las features 5, 7 y 8. Esta feature corrige la fuente de exclusión que usan ambos mecanismos (hashTree/isExcludedFromTreeHash en verify.go, y el paso de exclusión de computeSubjectHash en review.go) para que además de (o en vez de) la lista fija actual, se respete .gitignore — el diseño concreto (parsear .gitignore en Go, delegar a `git check-ignore`/`git ls-files --others --exclude-standard`, u otra estrategia) lo define spec_writer. Bloqueada por: ninguna feature de producto — es una corrección transversal sobre código ya cerrado en las features 5 y 7, sin dependencias nuevas.",
+      "id": 12,
+      "name": "tree_hash_respects_gitignore",
+      "reviewVerdict": "APPROVED",
+      "sdd": true,
+      "status": "done",
+      "title": "hashTree y computeSubjectHash respetan .gitignore, no una lista fija de tres exclusiones"
+    },
+    {
+      "id": 13,
+      "name": "spec_template_gwt_rfc2119",
+      "title": "Plantilla de spec_writer exige Given/When/Then y RFC 2119",
+      "description": "Extiende la plantilla de la spec en .claude/agents/spec_writer.md (sección 'Plantilla de la spec'): agrega un bloque Given/When/Then junto a (no reemplazando) cada historia de '## User Stories' que implique una rama de comportamiento verificable (camino feliz vs camino de error) — no se fuerza en historias puramente de preferencia de diseño sin rama verificable, para evitar sobre-ingeniería (misma disciplina que candidato C4 de ROADMAP.md). Marca '## Implementation Decisions' con palabras clave RFC 2119 (MUST/SHOULD/MAY) para distinguir qué rompe el acceptance de qué es negociable. Aplica solo hacia adelante — no reescribe specs/*/spec.md ya existentes. Edición de documentación/configuración del agente, no de código de producto. Sin bloqueos. Origen: candidato C1 de ROADMAP.md.",
+      "sdd": false,
+      "acceptance": [
+        "En .claude/agents/spec_writer.md, la sección '## Plantilla de la spec' contiene, dentro o inmediatamente después de '## User Stories', un bloque de ejemplo con el formato literal 'Given/When/Then' (o 'Dado/Cuando/Entonces') junto al formato existente 'Como <actor>, quiero <funcionalidad>, para <beneficio>' — el formato Como/quiero/para no se borra",
+        "La plantilla indica explícitamente que el bloque Given/When/Then se agrega solo a historias que impliquen una rama de comportamiento verificable (camino feliz vs camino de error), y que no se fuerza en historias puramente de preferencia de diseño sin rama verificable — frase explícita en el archivo, no inferible",
+        "En '## Implementation Decisions', la plantilla instruye marcar cada decisión con una palabra clave RFC 2119 (MUST/SHOULD/MAY), y define en el propio archivo que MUST es lo que rompe el acceptance si se incumple y SHOULD/MAY es negociable",
+        "git diff de la sesión muestra cambios acotados a .claude/agents/spec_writer.md — ningún archivo bajo specs/*/spec.md aparece modificado",
+        "El resto de las secciones de la plantilla (Problem Statement, Solution, Testing Decisions, Out of Scope, Further Notes) y los pasos 1-4 de spec_writer.md no cambian de significado",
+        "El humano revisó y aprobó el diff antes de cerrar"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 14,
+      "name": "spec_gwt_mechanical_check",
+      "title": "april status/doctor verifica mecánicamente que la spec tiene Given/When/Then",
+      "description": "Extiende april status --json y/o april doctor (spec_writer define cuál, o si aplica a ambos) con un chequeo estructural barato, read-only: para una feature sdd:true con specs/<name>/spec.md existente, verifica si el archivo contiene al menos un bloque Given/When/Then (según el marcador que fije la feature 13 en la plantilla) antes de considerar la spec lista para pasar a la fase de tickets. No bloquea specs que no lo necesiten — una spec puede declarar explícitamente que ninguna de sus historias de usuario tiene rama verificable, y en ese caso el chequeo no reporta ausencia. Sin motor de reglas nuevo — mismo espíritu read-only que april doctor (feature 9). Bloqueada por: feature 13 (necesita que la plantilla ya exija el bloque para que el chequeo tenga sentido). Origen: candidato C1 de ROADMAP.md.",
+      "sdd": true,
+      "acceptance": [
+        "specs/spec_gwt_mechanical_check/spec.md existe y fue aprobada explícitamente por el humano antes de pasar a Implementación",
+        "Para una feature sdd:true cuyo specs/<name>/spec.md existe y contiene al menos un bloque Given/When/Then, el comando definido en la spec (april status --json y/o april doctor) no reporta ninguna señal de ausencia de GWT para esa feature",
+        "Para una feature sdd:true cuyo specs/<name>/spec.md existe pero NO contiene ningún bloque Given/When/Then, el mismo comando reporta explícitamente esa ausencia (ej. un nuevo valor en blockedReasons o campo equivalente documentado en la spec) — no avanza en silencio a la fase 'tickets'",
+        "Existe un mecanismo explícito (documentado en la spec) para que una spec declare que ninguna de sus historias de usuario requiere bloque Given/When/Then, y al menos un test cubre ese caso confirmando que el chequeo NO reporta ausencia",
+        "El comando no escribe, borra ni modifica ningún archivo — hashes antes/después idénticos (mismo criterio que la feature 9, doctor_readonly_check)",
+        "Existe un test de caracterización, escrito ANTES de modificar derivePhase/computeBlockedReasons/nextRecommendedText, que fija el phase/blockedReasons/nextRecommended actual de las 12 features ya done de este repo (o un fixture equivalente); tras el cambio, ese test demuestra que nada se movió salvo el comportamiento nuevo de esta feature (disciplina de docs/conventions.md, sección 'Cambios a la lógica de derivación de fase', origen candidato C2 de ROADMAP.md)",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 15,
+      "name": "blocked_reasons_remedy_commands",
+      "title": "blockedReasons receta el comando exacto para resolver cada bloqueo, no solo lo diagnostica",
+      "description": "computeBlockedReasons (status.go:304) y sus helpers noTestEvidenceReason (status.go:379), noReviewVerdictReason (status.go:420), ticketBlockedByReasons (status.go:654) y detectBlockedByCycle (status.go:671) diagnostican cada bloqueo pero nunca recetan la acción concreta para resolverlo: el mensaje de más de una feature in_progress (status.go:314) no dice qué bajar a pending; los de no_test_evidence sin receipt o con receipt desactualizado (status.go:382,385,388) no mencionan `april verify record --feature <id> -- <comando>`; los de no_review_verdict equivalentes (status.go:423,426,429) no mencionan `april review record --feature <id> --verdict <valor>`; el de Blocked by no interpretable (status.go:658) no dice el formato esperado (números de ticket de dos dígitos separados por coma, o la palabra `none`) ni qué archivo editar; el de ciclo en Blocked by (status.go:729) lista la cadena pero no indica qué archivo de ticket tocar para romperla. Esta feature agrega, a cada uno de esos mensajes, el comando `april ...` exacto o la acción concreta (ej. editar tal archivo de ticket) — sin cambiar las substrings literales de contrato ya usadas por specs previas (no_test_evidence, no_review_verdict, ciclo detectado). Origen: candidato C3 de ROADMAP.md. Toca computeBlockedReasons/derivePhase-adjacent code, por lo que hereda la disciplina de test de caracterización de docs/conventions.md ('Cambios a la lógica de derivación de fase', origen C2). Sin bloqueos nuevos.",
+      "sdd": true,
+      "acceptance": [
+        "Existe un test de caracterización, escrito ANTES de modificar computeBlockedReasons/noTestEvidenceReason/noReviewVerdictReason/ticketBlockedByReasons/detectBlockedByCycle, que fija el texto exacto actual de blockedReasons para cada uno de los casos cubiertos por esta feature (in_progress duplicado; no_test_evidence sin receipt, con exitCode≠0 y con treeHash desactualizado; no_review_verdict en los mismos tres casos; ticket con Blocked by no interpretable; ciclo en Blocked by) sobre fixtures existentes o nuevos; tras el cambio, el mismo test demuestra que en cada mensaje lo único que cambió es la adición del comando/acción de remedio, no el resto del texto (disciplina de docs/conventions.md, sección 'Cambios a la lógica de derivación de fase', origen candidato C2 de ROADMAP.md)",
+        "El mensaje que reporta más de una feature in_progress (status.go:314) incluye el comando concreto `april feature set-status <id> pending`, señalando que hay que bajar alguna de las features listadas a pending para volver a una sola in_progress",
+        "Los tres mensajes de noTestEvidenceReason (status.go:382, 385, 388 — sin receipt, exitCode≠0, treeHash desactualizado) siguen conteniendo la substring literal `no_test_evidence` sin modificar, y cada uno incluye el comando `april verify record --feature <id> -- <comando>` con el id real de la feature",
+        "Los tres mensajes de noReviewVerdictReason (status.go:423, 426, 429 — sin receipt, verdict que no habilita cierre, treeHash desactualizado) siguen conteniendo la substring literal `no_review_verdict` sin modificar, y cada uno incluye el comando `april review record --feature <id> --verdict <valor>` con el id real de la feature",
+        "El mensaje de ticketBlockedByReasons (status.go:658) para un Blocked by no interpretable indica explícitamente el formato esperado (números de ticket de dos dígitos separados por coma, o la palabra `none`) y la acción concreta de editar el archivo de ticket señalado (t.Filename) para corregirlo",
+        "El mensaje de detectBlockedByCycle (status.go:729) sigue conteniendo la substring `ciclo detectado` y la cadena de tickets que forma el ciclo, y además indica la acción concreta de editar el archivo de alguno de los tickets de esa cadena para quitar/corregir su referencia de Blocked by y romper el ciclo",
+        "specs/blocked_reasons_remedy_commands/spec.md identifica explícitamente, tras revisar todo status.go, la lista completa de mensajes que produce blockedReasons, y para cada uno decide si le aplica comando/acción de remedio o queda fuera de alcance con justificación explícita (ej. mensajes ya autoexplicativos como 'status fuera de rules.valid_status' o 'feature marcada blocked')",
+        "Los tests existentes de blockedReasons en status_test.go (los que verifican contenido vía strings.Contains/anyContains sobre report.BlockedReasons, incluyendo los que fijan las substrings no_test_evidence, no_review_verdict y ciclo detectado) siguen pasando sin editar sus aserciones",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 16,
+      "name": "scaffold_excludes_verify_ledger",
+      "title": "april init nunca propaga .claude/verify-ledger.jsonl de este repo a un proyecto nuevo",
+      "description": "El go:embed de scaffold.go:33 (`.claude AGENTS.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates`) incluye todo el árbol .claude/, y .claude/verify-ledger.jsonl está trackeado en git, así que queda embebido en tmplFS junto con el resto. El único guard de dogfooding existente en el fs.WalkDir de planScaffold (scaffold.go:293) excluye .claude/manifest.json, pero no cubre el ledger. Sin este guard, april init sobre un destino nuevo copiaría el historial real de verify/review de este repo (ids de feature, treeHash, timestamps, stdout de tests corridos en April) a cualquier proyecto scaffoldeado. Origen: hallazgo real de esta sesión (31/08/2026), no un candidato del ROADMAP. La constante verifyLedgerPath (verify.go:26) ya identifica la ruta exacta a excluir, evitando repetir el string literal.",
+      "sdd": false,
+      "acceptance": [
+        "En el fs.WalkDir de planScaffold (scaffold.go), junto al guard existente para \".claude/manifest.json\", se agrega un guard equivalente que nunca agrega a plan.files ni a ningún otro campo del plan la entrada cuyo relSlash sea igual a verifyLedgerPath (la constante de verify.go, no un string literal nuevo)",
+        "Existe un test nuevo, análogo a TestManifestJsonEmbebidoNuncaSePropaga (scaffold_test.go), que demuestra que aunque .claude/verify-ledger.jsonl de este propio repo quede embebido en tmplFS, scaffoldInit/planScaffold sobre un destino nuevo (tempdir vacío) nunca lo escribe ni lo incluye en el plan",
+        "TestManifestJsonEmbebidoNuncaSePropaga y el resto de la suite de scaffold_test.go siguen pasando sin modificar sus aserciones existentes",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 17,
+      "name": "gitignore_root_tracks_specs",
+      "title": "El .gitignore de la raíz de este repo deja de ignorar specs/ — las specs SDD reales quedan versionadas",
+      "description": "El .gitignore de la raíz de este repo (línea 66) tiene la entrada `specs/`, copiada literal de templates/.gitignore (la que SÍ corresponde a proyectos NUEVOS scaffoldeados por april init, donde specs/ es estado de trabajo descartable — comentario explícito ahí: 'es estado de trabajo, no se versiona de momento'). En este propio repo, specs/ no es descartable: es la documentación SDD real que CLAUDE.md exige (require_approved_spec_to_implement). Verificado con `git ls-files specs/` (no devuelve nada): ninguna de las 7 specs.md existentes en el filesystem (las 6 de features ya done más spec_gwt_mechanical_check de esta sesión) estuvo nunca en git. Consecuencia real detectada vía log de CI de GitHub Actions: TestCaracterizacionFeaturesSddDoneAntesDeComputeBlockedReasons (feature 14, ticket 01) lee specs/<name>/spec.md del árbol real vía os.ReadFile, y falla en CI (git clone limpio, sin esos archivos) con 'no such file or directory' para las 6 features, aunque pasa en local porque los archivos siguen en el filesystem de cada desarrollador. Origen: hallazgo real de esta sesión (31/08/2026) a partir de un log de CI pegado por el humano, no un candidato del ROADMAP.",
+      "sdd": false,
+      "acceptance": [
+        "La línea `specs/` se elimina del .gitignore de la raíz de este repo — queda solo en templates/.gitignore, que es donde corresponde; ese archivo no se toca",
+        "Tras el cambio, `git check-ignore -v specs/<cualquier-spec-existente>/spec.md` ya no matchea ninguna regla del .gitignore de la raíz (verificado con el comando real, no solo por lectura del archivo)",
+        "git diff .gitignore muestra un cambio acotado a esa única línea (más, si el implementador lo considera útil, un comentario breve explicando por qué se saca) — ningún otro patrón de .gitignore cambia de significado",
+        "El reporte final de agent_developer NO incluye ningún git add ni git commit — son exclusivamente del humano (regla dura de este repo) — y le indica explícitamente al humano correr `git add specs/ && git commit` para versionar por fin las specs existentes y que CI deje de fallar",
+        "Se agrega una nota breve a docs/conventions.md advirtiendo que templates/.gitignore (target: proyectos scaffoldeados) y el .gitignore de la raíz (target: este propio repo) tienen propósitos distintos, y que copiar una línea de uno a otro sin verificar que aplica a ambos contextos puede repetir este error",
+        "go build ./... y go test ./... en verde (sin cambios de código Go en esta feature, pero confirma que nada se rompió)"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 18,
+      "name": "gitignore_root_tracks_docs",
+      "title": "El .gitignore de la raíz de este repo deja de ignorar docs/ — la documentación acumulada queda versionada",
+      "description": "El .gitignore de la raíz de este repo (líneas 38-42) tiene el bloque `/docs/`, agregado a propósito en el commit 3c24d6b (24/08/2026) bajo el razonamiento de que docs/ es 'estado de trabajo... igual que /feature_list.json'. El humano determinó que ese razonamiento ya no aplica: docs/conventions.md y docs/verification.md son documentación acumulada citada repetidamente como fuente de verdad vinculante (secciones como 'Cambios a la lógica de derivación de fase', 'Áreas sensibles'), de la misma naturaleza que specs/*.md (feature 17), no estado descartable como feature_list.json. `git log --diff-filter=D -- \"docs/*.md\"` confirma que esos archivos estuvieron trackeados hasta el 24/08/2026, cuando se sacaron del tracking junto con agregar esta regla — hay historial real perdido de HEAD (recuperable vía `git log --all`, no presente en el árbol actual). Mismo tratamiento que la feature 17 le dio a specs/. Sin bloqueos.",
+      "sdd": false,
+      "acceptance": [
+        "El bloque `/docs/` (líneas 38-42: comentario + la línea `/docs/`) se elimina del .gitignore de la raíz de este repo. templates/.gitignore no se toca — verificado que no contiene ninguna regla de docs/ (solo specs/ y tests/)",
+        "Tras el cambio, `git check-ignore -v docs/conventions.md docs/verification.md docs/architecture.md docs/specs.md` no matchea ninguna regla del .gitignore de la raíz para ninguno de los cuatro archivos",
+        "git diff .gitignore muestra un cambio acotado a ese bloque — ningún otro patrón cambia de significado. En particular, el bloque de líneas 57-61 ('Legacy: versiones previas... /architecture.md, /conventions.md, /verification.md', sobre archivos sueltos en la raíz, NO docs/architecture.md etc.) permanece intacto: es una regla distinta y sigue siendo válida",
+        "El reporte final de agent_developer no incluye ningún git add ni git commit — le indica explícitamente al humano correr `git add docs/ && git commit` para versionar por fin docs/architecture.md, docs/conventions.md, docs/specs.md y docs/verification.md",
+        "Se agrega una nota en docs/conventions.md, en o ampliando la sección '## templates/.gitignore vs .gitignore de la raíz — no son el mismo target' (feature 17), documentando este segundo hallazgo hermano sobre docs/ — mismo patrón de no copiar/mantener reglas de exclusión sin revalidar si el contexto (qué es 'estado de trabajo' vs 'documentación vinculante') sigue siendo válido",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 19,
+      "name": "scaffold_hooks_keep_exec_bit",
+      "title": "april init escribe todo lo bajo .claude/hooks/ con permiso ejecutable (0755), no solo init.sh",
+      "description": "go:embed no preserva el bit de ejecución del árbol fuente: planScaffold (scaffold.go:307-320) decide el mode del archivo a mano vía un switch por d.Name() que solo cubre \"init.sh\" ⇒ 0755, dejando cualquier archivo bajo .claude/hooks/ (ej. block-dangerous-git.sh, guardrail PreToolUse de .claude/settings.json) en 0644 en el destino. Confirmado hoy (31/08/2026) en un proyecto real scaffoldeado (CO-Backend): el hook falla con 'Permiso denegado' al arrancar Claude Code, así que el guardrail nunca bloqueó nada en ningún proyecto scaffoldeado hasta ahora — bug silencioso, no específico de ese proyecto. Esta feature corrige la condición para que cubra el directorio .claude/hooks/ completo por prefijo de ruta (relSlash, mismo estilo que el guard de dogfooding de .claude/manifest.json en scaffold.go:293), no un nombre de archivo puntual — para no repetir el bug con el próximo hook que se agregue. Origen: hallazgo real de esta sesión (31/08/2026), no un candidato del ROADMAP. Sin bloqueos — toca solo la asignación de mode en planScaffold.",
+      "sdd": false,
+      "acceptance": [
+        "En planScaffold (scaffold.go), la asignación de mode dentro del fs.WalkDir deja de decidir por d.Name() == \"init.sh\" como único caso: se agrega una condición adicional que evalúa relSlash (la misma variable ya usada por el guard de dogfooding de .claude/manifest.json en scaffold.go:293) con strings.HasPrefix(relSlash, \".claude/hooks/\") ⇒ mode = 0755, cubriendo cualquier archivo futuro bajo ese directorio, no solo block-dangerous-git.sh por nombre exacto",
+        "init.sh sigue quedando en mode 0755 en el plan — el caso existente no se rompe (TestPlanScaffoldIsPure sigue comprobando initSh.mode == 0755 sin editar esa aserción)",
+        "feature_list.json y cualquier archivo de agente (.claude/agents/*.md) siguen quedando en mode 0644 en el plan — el cambio no vuelve ejecutable nada que no deba (TestPlanScaffoldIsPure sigue comprobando featureList.mode == 0644 sin editar esa aserción)",
+        "Existe un test nuevo en scaffold_test.go, siguiendo el patrón real de TestPlanScaffoldIsPure (recorrer plan.files, ubicar por relPath/relSlash el scaffoldFileWrite correspondiente y comparar .mode), que verifica: (a) un archivo bajo .claude/hooks/<cualquier-nombre>.sh queda en el plan con mode == 0755, y (b) un archivo bajo .claude/agents/*.md sigue en el plan con mode == 0644",
+        "Los tests existentes de scaffold_test.go (incluido TestPlanScaffoldIsPure y TestManifestJsonEmbebidoNuncaSePropaga) siguen pasando sin modificar sus aserciones",
+        "go build ./... y go test ./... en verde",
+        "El reporte final de agent_developer le recuerda explícitamente al humano que en proyectos YA scaffoldeados con el bug (ej. CO-Backend) el permiso hay que corregirlo a mano con chmod +x .claude/hooks/*.sh — este fix solo corrige corridas futuras de april init, no repara instalaciones existentes retroactivamente (fuera de alcance de esta feature)"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 20,
+      "name": "scaffold_session_handoff_placeholder",
+      "title": "april init nunca propaga el session-handoff.md real de este repo a un proyecto nuevo",
+      "description": "El go:embed de scaffold.go:33 (`.claude AGENTS.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates`) embebe session-handoff.md directamente desde la raíz de este repo — no hay ninguna versión placeholder en templates/ (confirmado: templates/ solo tiene docs/, feature_list.json, progress/current.md, progress/history.md y .gitignore, sin session-handoff.md) y planScaffold (scaffold.go:261-320) no tiene ningún guard que lo excluya, a diferencia de .claude/manifest.json (línea 293) y .claude/verify-ledger.jsonl (línea 303, vía la constante verifyLedgerPath de verify.go:26). Resultado: april init sobre un destino nuevo copia tal cual el session-handoff.md real y actual de este repo (31006 bytes ahora mismo: historial de features 1-19, referencias a ROADMAP.md, a la comparación con gentle-ai, a proyectos internos como CO-Backend) a cualquier proyecto scaffoldeado — contenido que no tiene nada que ver con el destino. templates/.gitignore SÍ tiene la línea /session-handoff.md (verificado en TestCmdInitGitignoreExistenteHaceMerge, scaffold_test.go:402), confirmando que la intención de diseño ya es que cada proyecto scaffoldeado tenga su propio session-handoff.md como estado de trabajo no trackeado por git, igual que este propio repo — el bug es solo el contenido INICIAL que se coloca ahí. Ningún test existente cubre el contenido de session-handoff.md en el destino (TestCmdInitScaffoldsEmptyDir solo compara AGENTS.md, spec_writer.md y feature_list.json). Origen: hallazgo real de esta sesión (01/09/2026), mismo patrón que las features 16 y 19. Sin bloqueos — toca solo scaffold.go y/o templates/.",
+      "sdd": false,
+      "acceptance": [
+        "Existe templates/session-handoff.md con contenido placeholder neutro, en la misma familia que templates/progress/current.md y templates/feature_list.json: no contiene ninguna referencia a features 1-19 de este repo, a ROADMAP.md, a gentle-ai, a CO-Backend, ni a ningún otro dato específico del historial real de April-Agent-harness — verificable con una búsqueda negativa (ej. grep de esos términos sobre templates/session-handoff.md no devuelve coincidencias)",
+        "Correr scaffoldInit/april init sobre un directorio destino vacío (tempdir) produce un session-handoff.md en el destino cuyo contenido es exactamente el de templates/session-handoff.md (el placeholder), nunca el contenido del session-handoff.md real de la raíz de este repo — logrado ya sea (a) sacando session-handoff.md del go:embed de scaffold.go:33 y dejando que all:templates lo resuelva vía templates/session-handoff.md (reusa el mecanismo de 'lienzo limpio' que ya usan docs/, feature_list.json y progress/, sin guard nuevo), o (b) agregando a planScaffold un guard de dogfooding análogo al de .claude/verify-ledger.jsonl (scaffold.go:297-305) que descarta el session-handoff.md embebido desde la raíz y lo sustituye por el de templates/ — cualquiera de los dos enfoques es válido si cumple el resto de los puntos de este acceptance",
+        "Existe un test nuevo en scaffold_test.go, análogo a TestManifestJsonEmbebidoNuncaSePropaga (mismo patrón ya usado por la feature 16 para verify-ledger.jsonl), que arma un tempdir vacío, corre scaffoldInit, lee el session-handoff.md resultante y confirma que NO coincide con (ni contiene substrings distintivas del) session-handoff.md real de la raíz de este repo, y que sí coincide con templates/session-handoff.md",
+        "TestCmdInitGitignoreExistenteHaceMerge (scaffold_test.go:382) sigue pasando sin modificar sus aserciones — la línea /session-handoff.md se preserva en el .gitignore fusionado del destino",
+        "El resto de la suite de scaffold_test.go (incluidos TestPlanScaffoldIsPure y TestManifestJsonEmbebidoNuncaSePropaga) sigue pasando sin modificar sus aserciones existentes",
+        "go build ./... y go test ./... en verde"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 21,
+      "name": "gitignore_root_tracks_feature_list",
+      "title": "El .gitignore de la raíz de este repo deja de ignorar feature_list.json — el backlog vivo queda versionado",
+      "description": "El .gitignore de la raíz de este repo tiene, desde el commit 8517803 (31/07/2026), la línea `/feature_list.json` con el comentario 'estado de trabajo del harness (dev, no producto)... el registro de lo entregado va a CHANGELOG.md via ./sync-changelog.sh'. `git ls-files feature_list.json` confirma que el archivo nunca ha estado trackeado desde ese commit: un clon fresco de este repo no recibe el backlog (20 features con acceptance detallado e historial de status). Esa arquitectura de respaldo quedó obsoleta — CHANGELOG.md describe 'tres flujos F1/F2/F3' y un .claude/agents/orquestador.md que ya no existen (CLAUDE.md actual: 'no hay .claude/agents/orquestador.md; el hilo principal actúa como orquestador directamente'), y sync-changelog.sh no parece haberse corrido en mucho tiempo. Mismo patrón de fondo que los hallazgos hermanos de las features 17 (specs/) y 18 (docs/): contenido vinculante tratado como descartable en el .gitignore de la raíz. El humano decidió explícitamente (02/09/2026) trackear feature_list.json como cualquier otro estado real del proyecto — CHANGELOG.md queda como resumen curado aparte, no como único respaldo del backlog. Arreglar la staleness de CHANGELOG.md/sync-changelog.sh queda explícitamente fuera de alcance de esta feature. Sin bloqueos.",
+      "sdd": false,
+      "acceptance": [
+        "La línea `/feature_list.json` (y su bloque de comentario explicativo) se elimina del .gitignore de la raíz de este repo — templates/.gitignore no se toca, y la exclusión de templates/feature_list.json (necesaria para go:embed) sigue intacta porque nunca dependió de esta línea anclada con \"/\", que solo aplicaba a la raíz",
+        "Tras el cambio, `git check-ignore -v feature_list.json` ya no matchea ninguna regla del .gitignore de la raíz (verificado con el comando real, no solo por lectura del archivo)",
+        "`git add -n feature_list.json` (o `git status`) confirma que feature_list.json queda trackeable — ya no aparece como ignorado",
+        "git diff .gitignore muestra un cambio acotado a esa línea/bloque de comentario — ningún otro patrón de .gitignore cambia de significado",
+        "El reporte final de agent_developer NO incluye ningún git add ni git commit (regla dura de este repo) — le indica explícitamente al humano correr `git add feature_list.json && git commit` para versionar por fin el backlog vivo",
+        "Se agrega una nota breve a docs/conventions.md, en o ampliando la sección de hallazgos hermanos ya existente (features 17/18/20) sobre el .gitignore de la raíz, documentando este cuarto hallazgo: /feature_list.json tratado como estado de trabajo descartable cuando en realidad es el backlog vivo con acceptance/status real, y que CHANGELOG.md/sync-changelog.sh como respaldo alternativo quedó obsoleto (fuera de alcance arreglar eso acá)",
+        "El acceptance de esta feature no incluye ningún cambio a CHANGELOG.md ni a sync-changelog.sh — quedan explícitamente fuera de alcance",
+        "go build ./... y go test ./... en verde (sin cambios de código Go esperados en esta feature, pero confirma que nada se rompió)"
+      ],
+      "status": "done"
+    }
+  ]
+}

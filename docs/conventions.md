@@ -79,10 +79,14 @@ el código (constraint oculto, invariante, workaround de un bug concreto).
 Nunca comentarios que expliquen el *qué* — el nombre ya lo dice.
 
 - **Aceptable** (real, ya en el `.gitignore` de este repo): el comentario
-  que explica por qué `/feature_list.json` está anclado con `/` — "para no
-  tragarse `templates/feature_list.json`, que SÍ va versionado (lo
-  necesita `go:embed`)". Es una restricción no obvia; sin el comentario,
-  alguien podría "simplificar" el patrón y romper el embed.
+  que explica por qué `/.claude/manifest.json` está ahí — "si se generara
+  aquí por error, el `go:embed` de `scaffold.go` lo empotraría y lo
+  propagaría a todos los destinos scaffoldeados". Es una restricción no
+  obvia; sin el comentario, alguien podría borrar la línea pensando que es
+  ruido. (Nota: el ejemplo original de este bullet era el comentario que
+  justificaba `/feature_list.json` anclado con `/` — esa línea completa se
+  eliminó en la feature 21, ver hallazgos hermanos abajo; el ejemplo se
+  reemplazó porque el original ya no existe en el `.gitignore`.)
 - **Rechazado**: `// crea el directorio si no existe` sobre una línea
   `os.MkdirAll(path, 0o755)`. El nombre de la función ya lo dice — el
   comentario no aporta nada que el código no diga.
@@ -229,3 +233,71 @@ que la justificaba cambia. Antes de dar por válida una regla de
 `.gitignore` de este repo solo porque tiene un comentario que la explica,
 revalidar si esa explicación sigue siendo cierta hoy, no solo si el
 comentario suena razonable.
+
+### Tercer hallazgo hermano: una regla de `templates/.gitignore` puede
+### ignorar su propia fuente dentro de `templates/` (feature 20,
+### `scaffold_session_handoff_placeholder`)
+
+`templates/.gitignore:9` tiene la línea `/session-handoff.md`, correcta
+para el **destino** scaffoldeado: cada proyecto nuevo debe tener su propio
+`session-handoff.md` como estado de trabajo, no trackeado por git — mismo
+espíritu que la regla equivalente del `.gitignore` de la raíz de este
+repo. El matiz que los dos hallazgos anteriores (`specs/`, `docs/`) no
+tenían: acá la regla vive **dentro** de `templates/`, y por estar anclada
+(`/session-handoff.md` es relativa al directorio donde está el propio
+`.gitignore`, o sea `templates/`) también ignora a
+`templates/session-handoff.md` — el placeholder que es la **fuente** que
+`scaffold.go` embebe vía `all:templates` para copiarlo al destino. Un
+`git add templates/` normal no lo agrega; sin forzarlo, el archivo nunca
+queda trackeado, no sobrevive a un `git clone` limpio, y `april init`
+sobre un checkout fresco deja de generar cualquier `session-handoff.md` en
+el destino (detectado por `reviewer_agent` con una prueba de caza negra:
+borrar el archivo del disco y reconstruir el binario).
+
+Mitigación en dos partes, no una sola: (1) trackear el archivo a la fuerza
+con `git add -f templates/session-handoff.md` — documentado acá para que
+nadie lo pierda en un futuro `git clean`/auditoría de `.gitignore`
+pensando que es un archivo huérfano; y (2) el test
+`TestTemplatesSessionHandoffPlaceholderEstaTrackeadoEnGit`
+(`scaffold_test.go`) como guardarraíl permanente: falla si el archivo
+existe en disco pero no está en el índice de git, para que la colisión no
+vuelva a pasar en silencio con un futuro archivo de plantilla que
+comparta nombre con una regla de `templates/.gitignore`. Lección: cuando
+un archivo de plantilla vive dentro del mismo árbol que gobierna su propio
+`.gitignore` de destino, verificar explícitamente con
+`git check-ignore -v` que la regla pensada para el scaffoldeado no
+alcanza también a la fuente.
+
+### Cuarto hallazgo hermano: `/feature_list.json` tratado como estado de
+### trabajo descartable cuando es el backlog vivo real (feature 21,
+### `gitignore_root_tracks_feature_list`)
+
+El `.gitignore` de la raíz tenía, desde el commit `8517803` (31/07/2026),
+la línea `/feature_list.json` con un comentario que documentaba una
+arquitectura de respaldo ya obsoleta: "el backlog vivo no se versiona, el
+registro de lo entregado va a `CHANGELOG.md` vía `./sync-changelog.sh`".
+Mismo patrón de fondo que `specs/` y `docs/` arriba — contenido vinculante
+(20 features con `acceptance` detallado e historial de `status`) tratado
+como descartable. Consecuencia real: `feature_list.json` nunca estuvo
+trackeado desde ese commit; un clon fresco de este repo no recibía el
+backlog. El humano decidió explícitamente (02/09/2026) trackearlo, mismo
+tratamiento que specs/docs.
+
+Matiz propio de este hallazgo (a diferencia de los tres anteriores): acá
+la arquitectura de respaldo alternativa (`CHANGELOG.md` +
+`sync-changelog.sh`) referenciada por el propio comentario también quedó
+obsoleta — `CHANGELOG.md` describe "tres flujos F1/F2/F3" y un
+`.claude/agents/orquestador.md` que ya no existen (`CLAUDE.md` actual: "no
+hay `.claude/agents/orquestador.md`; el hilo principal actúa como
+orquestador directamente"), y `sync-changelog.sh` no parece haberse
+corrido en mucho tiempo. Arreglar esa staleness queda explícitamente fuera
+de alcance de la feature 21 — `feature_list.json` versionado en git es
+ahora la fuente de verdad del backlog, `CHANGELOG.md` queda como resumen
+curado aparte, no como único respaldo.
+
+Nota: eliminar esta línea del `.gitignore` de la raíz no afecta
+`templates/feature_list.json` (necesario para `go:embed`, ver
+`scaffold.go`) — esa exclusión nunca dependió de la línea anclada con `/`
+de la raíz, que solo gobierna el propio directorio raíz de este repo, no
+`templates/`. Verificado con `git check-ignore -v templates/feature_list.json`
+(sin match) antes y después del cambio.

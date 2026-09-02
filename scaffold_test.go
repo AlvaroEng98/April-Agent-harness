@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1040,6 +1041,74 @@ func TestVerifyLedgerEmbebidoNuncaSePropaga(t *testing.T) {
 		t.Errorf(".claude/verify-ledger.jsonl embebido en la plantilla no debería escribirse en el destino")
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("error inesperado al comprobar .claude/verify-ledger.jsonl en el destino: %v", err)
+	}
+}
+
+// TestSessionHandoffRealDeLaRaizNuncaSePropaga cubre la mitigación de
+// dogfooding: session-handoff.md real de la raíz de este repo (historial de
+// sesión, referencias a ROADMAP.md, gentle-ai, features internas) nunca debe
+// llegar a un proyecto scaffoldeado — el destino debe recibir el placeholder
+// neutro de templates/session-handoff.md.
+func TestSessionHandoffRealDeLaRaizNuncaSePropaga(t *testing.T) {
+	dest := t.TempDir()
+
+	if _, err := captureStdout(t, func() error {
+		return scaffoldInit(dest)
+	}); err != nil {
+		t.Fatalf("scaffoldInit falló: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dest, "session-handoff.md"))
+	if err != nil {
+		t.Fatalf("no se creó session-handoff.md en el destino: %v", err)
+	}
+
+	real, err := os.ReadFile("session-handoff.md")
+	if err != nil {
+		t.Fatalf("no se pudo leer el session-handoff.md real de la raíz: %v", err)
+	}
+	if string(got) == string(real) {
+		t.Errorf("session-handoff.md del destino no debería coincidir con el real de la raíz de este repo")
+	}
+	for _, unwanted := range []string{"ROADMAP.md", "gentle-ai", "CO-Backend"} {
+		if strings.Contains(string(got), unwanted) {
+			t.Errorf("session-handoff.md del destino no debería contener %q (dato específico del historial real)", unwanted)
+		}
+	}
+
+	want, err := os.ReadFile(filepath.Join("templates", "session-handoff.md"))
+	if err != nil {
+		t.Fatalf("no se pudo leer templates/session-handoff.md: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("session-handoff.md del destino no coincide con templates/session-handoff.md\nesperado:\n%s\nobtenido:\n%s", want, got)
+	}
+}
+
+// TestTemplatesSessionHandoffPlaceholderEstaTrackeadoEnGit es el guardarraíl
+// permanente contra la colisión detectada por reviewer_agent al revisar esta
+// feature: templates/.gitignore:9 tiene la regla `/session-handoff.md`,
+// correcta para el DESTINO scaffoldeado (cada proyecto nuevo debe tener su
+// propio session-handoff.md como estado de trabajo no trackeado), pero esa
+// misma regla, anclada a templates/ (el directorio donde vive el propio
+// .gitignore), también ignora templates/session-handoff.md — el placeholder
+// que es la FUENTE que april init embebe vía all:templates. Si nadie lo
+// fuerza a trackear (`git add -f templates/session-handoff.md`), un `git
+// add templates/` normal no lo agrega, y el archivo nunca sobrevive a un
+// clon limpio del repo: tras el clon, planScaffoldFromFS no tiene de dónde
+// leer el placeholder y april init deja de generar CUALQUIER
+// session-handoff.md en el destino (ni el placeholder ni, por el bug que
+// esta feature corrige, el real). Este test falla si el placeholder existe
+// en disco pero no está trackeado en el índice de git — `git ls-files`
+// nunca lista un archivo ignorado que no fue forzado con `-f`.
+func TestTemplatesSessionHandoffPlaceholderEstaTrackeadoEnGit(t *testing.T) {
+	if _, err := os.Stat(filepath.Join("templates", "session-handoff.md")); err != nil {
+		t.Fatalf("templates/session-handoff.md no existe en disco: %v", err)
+	}
+
+	out, err := exec.Command("git", "ls-files", "--error-unmatch", "templates/session-handoff.md").CombinedOutput()
+	if err != nil {
+		t.Fatalf("templates/session-handoff.md existe en disco pero NO está trackeado en git — colisiona con templates/.gitignore:9 (/session-handoff.md), que también lo ignora a él. Correr 'git add -f templates/session-handoff.md' (ver nota en docs/conventions.md). Detalle: %v\n%s", err, out)
 	}
 }
 

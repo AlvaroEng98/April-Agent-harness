@@ -2,6 +2,197 @@
 
 <!-- Append-only log. Most recent at the top. -->
 
+## 2026-09-02 (continuación) — Cuarto hallazgo hermano: `feature_list.json` gitignoreado desde julio — feature 21 (done)
+
+Al intentar commitear el cierre de la feature 15, el humano corrió
+`git add feature_list.json` y falló: "ignorado por uno de tus archivos
+.gitignore". Investigado: el `.gitignore` de la raíz tiene, desde el
+commit `8517803` (31/07/2026), la línea `/feature_list.json` con un
+comentario que documentaba una arquitectura de respaldo alternativo
+("el backlog vivo no se versiona, va a `CHANGELOG.md` vía
+`./sync-changelog.sh`"). Esa arquitectura quedó obsoleta —
+`CHANGELOG.md` describe "tres flujos F1/F2/F3" y un
+`.claude/agents/orquestador.md` que ya no existen (el `CLAUDE.md` actual
+dice explícitamente que no hay tal archivo). Consecuencia real:
+`feature_list.json` (20 features, `acceptance` detallado, historial de
+`status`) nunca ha estado trackeado en git desde ese commit — un clon
+fresco de este repo no recibe ningún backlog. Mismo patrón de fondo que
+los hallazgos hermanos de las features 17 (`specs/`) y 18 (`docs/`):
+contenido vinculante tratado como descartable en el `.gitignore` de la
+raíz.
+
+El humano decidió explícitamente (pregunta directa) trackear
+`feature_list.json` como cualquier otro estado real del proyecto —
+`CHANGELOG.md` queda como resumen curado aparte, no como único respaldo;
+arreglar su staleness/`sync-changelog.sh` quedó fuera de alcance a
+propósito.
+
+### Feature 21 `gitignore_root_tracks_feature_list` (done, 02/09/2026)
+
+`agent_developer` eliminó el bloque de comentario + la línea
+`/feature_list.json` del `.gitignore` de la raíz (`templates/.gitignore`
+intacto, la exclusión de `templates/feature_list.json` para `go:embed`
+nunca dependió de esa línea anclada). Tuvo que actualizar además un
+ejemplo en la sección "Comentarios" de `docs/conventions.md` que citaba
+textualmente el comentario recién borrado — lo reemplazó por un ejemplo
+equivalente usando `/.claude/manifest.json`. Agregó el "Cuarto hallazgo
+hermano" documentando el patrón.
+
+Primera revisión de `reviewer_agent`: **CHANGES_REQUESTED**, puramente
+mecánico — el contenido estaba correcto, pero `agent_developer` nunca
+corrió `april verify record --feature 21 -- go test ./...`, así que
+`./init.sh` seguía en rojo por `no_test_evidence` (a diferencia de las
+features 17/18/19/20, que sí tenían su receipt). El orquestador registró
+el receipt faltante directamente (no requería tocar código). Segunda
+revisión: **APPROVED**, sin objeciones — confirmó que el contenido no
+había cambiado y que el único bloqueo restante (`no_review_verdict`) era
+el que ese mismo veredicto resolvía.
+
+Ledger real registrado (`april verify record`/`april review record
+--feature 21`), confirmado con `april status --json` general
+(`phase: closed`, sin features pendientes). Cerrada `done` con
+aprobación explícita del humano. Con esto, el backlog completo de este
+repo (features 1-21) queda `done` y **versionado en su totalidad por
+primera vez** (specs/docs/feature_list.json, los tres hallazgos
+hermanos de `.gitignore`, ya corregidos).
+
+## 2026-09-02 — Feature 15 (última pendiente del backlog): recetas de remedio en `blockedReasons` — backlog completo `done`
+
+Cierre de la feature 15 (`blocked_reasons_remedy_commands`, `sdd: true`,
+origen candidato C3 de `ROADMAP.md`), la única que quedaba `pending` tras
+la sesión anterior. Con esto el backlog completo (features 1-20) queda
+`done` — `april status --json` reporta `phase: closed`.
+
+### Fase Spec
+
+`spec_writer` escribió `specs/blocked_reasons_remedy_commands/spec.md`
+tras revisar `status.go` completo. Decisión clave: cada mensaje de
+`blockedReasons` preserva su diagnóstico actual carácter por carácter
+como prefijo, y agrega la receta después de un separador ` — ` uniforme
+(`april feature set-status`/`april verify record`/`april review record`
+con el id real ya sustituido, o la acción de archivo concreta para
+`Blocked by` no interpretable/ciclo). La spec identificó explícitamente,
+tras revisar todo `status.go`, los 5 mensajes que NO reciben receta
+(status inválido, feature `blocked`, spec faltante, Status de ticket
+inválido, línea corrupta del ledger) con justificación cada uno. Sumó
+también, con aprobación explícita del humano, el caso `no_gwt_coverage`
+(feature 14) como alcance adicional — honrando una delegación que la spec
+de esa feature ya había dejado escrita en su "Out of Scope". Aprobada por
+el humano.
+
+### Fase Tickets
+
+`ticket_writer` propuso y (tras aprobación explícita del humano sobre
+granularidad y blocking edges) publicó 2 tickets tracer-bullet: **01**
+(test de caracterización de los 10 mensajes, sin bloqueadores) y **02**
+(recetas en los 5 puntos de origen de `status.go`, bloqueado por 01) —
+mismo patrón que la feature 14.
+
+### Fase Implementación
+
+- Ticket 01: `agent_developer` agregó
+  `TestCaracterizacionMensajesBlockedReasonsAntesDeRecetas` en
+  `status_test.go` (10 subtests, reutilizando fixtures existentes),
+  verificado en verde contra el código sin tocar `computeBlockedReasons`
+  ni sus 5 helpers.
+- Ticket 02: `agent_developer` agregó las recetas en los 5 puntos de
+  origen de `status.go` (`computeBlockedReasons`, `noTestEvidenceReason`,
+  `noReviewVerdictReason`, `ticketBlockedByReasons`,
+  `detectBlockedByCycle`), reutilizando el mismo test del ticket 01
+  (igualdad exacta → `strings.HasPrefix` + `strings.Contains` por caso).
+
+### Fase Revisión
+
+`reviewer_agent` revisó la feature completa (no ticket por ticket) contra
+las 25 User Stories de la spec — **APPROVED**, sin objeciones. Verificó en
+persona que el diagnóstico se preserva carácter por carácter, que los
+placeholders (`<id>`, `<comando>`, `<valor>`) quedan literales donde la
+spec lo exige, y que `detectBlockedByCycle` resuelve el archivo real sin
+agregar estructura nueva. `verify-report.md` archivado en
+`specs/blocked_reasons_remedy_commands/`.
+
+### Hallazgo real al registrar el ledger — bug de redacción en el propio ticket 02
+
+Al correr `april status --json 15` antes de cerrar, apareció un
+`blockedReasons` inesperado: el campo `**Blocked by:** 01 (Test de
+caracterización de **los 10** mensajes de...` del ticket 02 tenía el
+número "10" (de "10 mensajes") en la misma línea que el "01" — el parser
+de `Blocked by` (`parseBlockedBy`, toma todos los números de dos dígitos
+de la línea) interpretó "10" como una segunda referencia a un ticket
+inexistente, y lo marcó como no interpretable. Corregido por el
+orquestador editando directamente el texto del ticket (dentro de lo que
+puede tocar sin pasar por `agent_developer`). Efecto colateral
+demostrativo: la receta nueva que la propia feature 15 agrega
+(`ticketBlockedByReasons`) indicó correctamente qué archivo editar y qué
+formato se esperaba — la feature recién implementada funcionó en la
+práctica sobre su propio repo. Ledger re-registrado tras el fix (el
+`treeHash` había quedado desactualizado por la edición).
+
+Ledger real registrado (`april verify record`/`april review record
+--feature 15`), confirmado con `april status --json 15`
+(`blockedReasons: []`) y `april status --json` general
+(`phase: closed`). Cerrada `done` con aprobación explícita del humano.
+
+## 2026-09-01 — `session-handoff.md` real filtrado a proyectos scaffoldeados: feature 20 (done)
+
+El humano pidió revisar si `april init` copiaba el contenido de
+`session-handoff.md` de este propio repo a proyectos donde se coloca
+April — comportamiento que debe ser independiente de cada proyecto. Se
+confirmó el bug con auditoría estática y luego con prueba de caza negra
+(build + `april init` real sobre un tempdir vacío): el `session-handoff.md`
+que llegaba al destino era byte a byte idéntico al real de la raíz de
+este repo (historial de features 1-19, referencias a `ROADMAP.md`,
+`gentle-ai`, `CO-Backend`). Se auditó también el resto del `go:embed`
+(`CHECKPOINTS.md`, `.claude/settings.json`, hooks, agentes, skills,
+`docs/`/`specs/`/`progress/`/`ROADMAP.md` de la raíz) sin encontrar otro
+caso del mismo patrón — `session-handoff.md` era el único archivo
+embebido con estado real de este repo sin guard ni placeholder.
+
+### Feature 20 `scaffold_session_handoff_placeholder` (done, 01/09/2026)
+
+Causa raíz: `scaffold.go:33` embebía `session-handoff.md` directo desde
+la raíz vía `//go:embed`, sin versión placeholder en `templates/` y sin
+guard de exclusión en `planScaffoldFromFS` (a diferencia de
+`.claude/manifest.json` y `.claude/verify-ledger.jsonl`, que sí lo
+tenían de las features previas). Creada por `planner_agent`, `sdd: false`
+(mismo patrón que las features 16 y 19).
+
+Ciclo con una vuelta de `CHANGES_REQUESTED`:
+- **Primera implementación** (`agent_developer`): sacó `session-handoff.md`
+  del `//go:embed` de `scaffold.go:33` y creó `templates/session-handoff.md`
+  como placeholder neutro (mismo mecanismo de "lienzo limpio" que ya usan
+  `docs/`/`feature_list.json`/`progress/`, sin guard nuevo). Test nuevo
+  `TestSessionHandoffRealDeLaRaizNuncaSePropaga`, análogo a
+  `TestManifestJsonEmbebidoNuncaSePropaga`.
+- **Primera revisión** (`reviewer_agent`): **CHANGES_REQUESTED**.
+  `templates/session-handoff.md` quedaba invisible para git: lo ignoraba
+  `templates/.gitignore:9` (`/session-handoff.md`, regla pensada para que
+  el *destino* scaffoldeado ignore su propio `session-handoff.md`, pero
+  que — al vivir el placeholder dentro de `templates/` — también lo
+  alcanzaba a él). Verificado en caza negra: borrando el archivo del
+  disco y reconstruyendo el binario, `april init` dejaba de crear
+  `session-handoff.md` en el destino — el fix no sobrevivía a un
+  `git add`/clon limpio. `agent_developer` no lo detectó porque sus
+  tests corrían contra el árbol de trabajo local, donde el archivo
+  seguía presente aunque gitignoreado.
+- **Segunda implementación** (`agent_developer`): resuelta la colisión
+  con `git add -f templates/session-handoff.md` (queda *staged*) más un
+  guardarraíl permanente nuevo, `TestTemplatesSessionHandoffPlaceholderEstaTrackeadoEnGit`
+  (usa `git ls-files --error-unmatch` vía `exec.Command`, mismo patrón
+  que `review_test.go`), que falla si el placeholder vuelve a quedar sin
+  trackear. Nota explicativa agregada en `docs/conventions.md`. Re-corrida
+  la caza negra con el archivo ya trackeado (recuperado con
+  `git checkout --` tras borrarlo del disco): destino idéntico byte a
+  byte al placeholder.
+- **Segunda revisión** (`reviewer_agent`): **APPROVED**. Verificó en
+  persona `git status`/`git ls-files`/`git check-ignore -v`, simuló la
+  regresión (`git rm --cached` → el guardarraíl nuevo falla como debía →
+  restaurado con `git add -f`), y corrió la suite completa en verde.
+
+Ledger real registrado (`april verify record`/`april review record --feature 20`),
+confirmado con `april status --json 20` (`blockedReasons: []`). Cerrada
+`done` con aprobación explícita del humano.
+
 ## 2026-08-31 (continuación 2) — Bit de ejecución perdido en `.claude/hooks/`: feature 19 (done)
 
 El humano corrió `april init` en un proyecto real

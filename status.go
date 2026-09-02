@@ -323,13 +323,20 @@ func computeBlockedReasons(fl featureListFile, validStatus map[string]bool, spec
 	reasons := []string{}
 
 	inProgressCount := 0
+	var inProgressIDs []int
 	for _, f := range fl.Features {
 		if f.Status == "in_progress" {
 			inProgressCount++
+			inProgressIDs = append(inProgressIDs, f.ID)
 		}
 	}
 	if inProgressCount > 1 {
-		reasons = append(reasons, fmt.Sprintf("hay %d features en in_progress a la vez (máximo 1 permitido por one_feature_at_a_time)", inProgressCount))
+		sort.Ints(inProgressIDs)
+		idStrs := make([]string, len(inProgressIDs))
+		for i, id := range inProgressIDs {
+			idStrs[i] = strconv.Itoa(id)
+		}
+		reasons = append(reasons, fmt.Sprintf("hay %d features en in_progress a la vez (máximo 1 permitido por one_feature_at_a_time) — ids en in_progress: %s; correr `april feature set-status <id> pending` para bajar alguna a pending", inProgressCount, strings.Join(idStrs, ", ")))
 	}
 
 	requiresSpec := map[string]bool{"spec_ready": true, "in_progress": true, "done": true}
@@ -345,7 +352,7 @@ func computeBlockedReasons(fl featureListFile, validStatus map[string]bool, spec
 			reasons = append(reasons, fmt.Sprintf("feature %d (%s) está marcada blocked", f.ID, f.Name))
 		}
 		if f.SDD && specExistsByFeature[f.Name] && len(ticketsByFeature[f.Name]) == 0 && f.Status != "done" && !specSatisfiesGWTByFeature[f.Name] {
-			reasons = append(reasons, fmt.Sprintf("feature %d (%s) tiene %s sin ningún bloque Given/When/Then ni el marcador %s (no_gwt_coverage)", f.ID, f.Name, specMdPath(f.Name), gwtOptOutMarker))
+			reasons = append(reasons, fmt.Sprintf("feature %d (%s) tiene %s sin ningún bloque Given/When/Then ni el marcador %s (no_gwt_coverage) — agregar al menos un bloque Given/When/Then a %s, o el marcador %s si ninguna historia de usuario tiene rama de comportamiento verificable", f.ID, f.Name, specMdPath(f.Name), gwtOptOutMarker, specMdPath(f.Name), gwtOptOutMarker))
 		}
 		if f.Status == "in_progress" {
 			if reason := noTestEvidenceReason(f, ledgerEntries, currentTreeHash); reason != "" {
@@ -400,13 +407,13 @@ func lastTestEntryForFeature(entries []ledgerEntry, featureID int) (ledgerEntry,
 func noTestEvidenceReason(f featureEntry, entries []ledgerEntry, currentTreeHash string) string {
 	last, found := lastTestEntryForFeature(entries, f.ID)
 	if !found {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero no tiene ningún receipt kind:test en %s (no_test_evidence)", f.ID, f.Name, verifyLedgerPath)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero no tiene ningún receipt kind:test en %s (no_test_evidence) — april verify record --feature %d -- <comando>", f.ID, f.Name, verifyLedgerPath, f.ID)
 	}
 	if last.ExitCode != 0 {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero su último receipt kind:test tiene exitCode %d != 0 (no_test_evidence)", f.ID, f.Name, last.ExitCode)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero su último receipt kind:test tiene exitCode %d != 0 (no_test_evidence) — april verify record --feature %d -- <comando>", f.ID, f.Name, last.ExitCode, f.ID)
 	}
 	if last.TreeHash != currentTreeHash {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero el treeHash de su último receipt kind:test (%s) no coincide con el árbol actual (%s) — el código cambió después de la corrida registrada (no_test_evidence)", f.ID, f.Name, last.TreeHash, currentTreeHash)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero el treeHash de su último receipt kind:test (%s) no coincide con el árbol actual (%s) — el código cambió después de la corrida registrada (no_test_evidence) — april verify record --feature %d -- <comando>", f.ID, f.Name, last.TreeHash, currentTreeHash, f.ID)
 	}
 	return ""
 }
@@ -441,13 +448,13 @@ func lastReviewEntryForFeature(entries []ledgerEntry, featureID int) (ledgerEntr
 func noReviewVerdictReason(f featureEntry, entries []ledgerEntry, currentTreeHash string) string {
 	last, found := lastReviewEntryForFeature(entries, f.ID)
 	if !found {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero no tiene ningún receipt kind:review en %s (no_review_verdict)", f.ID, f.Name, verifyLedgerPath)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero no tiene ningún receipt kind:review en %s (no_review_verdict) — april review record --feature %d --verdict <valor> (valores válidos: APPROVED, APPROVED_WITH_OBJECTION, CHANGES_REQUESTED)", f.ID, f.Name, verifyLedgerPath, f.ID)
 	}
 	if last.Verdict != verdictApproved && last.Verdict != verdictApprovedWithObjection {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero su último receipt kind:review tiene verdict %q, que no habilita cierre (no_review_verdict)", f.ID, f.Name, last.Verdict)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero su último receipt kind:review tiene verdict %q, que no habilita cierre (no_review_verdict) — april review record --feature %d --verdict <valor> (valores que habilitan cierre: APPROVED, APPROVED_WITH_OBJECTION)", f.ID, f.Name, last.Verdict, f.ID)
 	}
 	if last.TreeHash != currentTreeHash {
-		return fmt.Sprintf("feature %d (%s) está in_progress pero el treeHash de su último receipt kind:review (%s) no coincide con el árbol actual (%s) — el código cambió después del veredicto registrado (no_review_verdict)", f.ID, f.Name, last.TreeHash, currentTreeHash)
+		return fmt.Sprintf("feature %d (%s) está in_progress pero el treeHash de su último receipt kind:review (%s) no coincide con el árbol actual (%s) — el código cambió después del veredicto registrado (no_review_verdict) — april review record --feature %d --verdict <valor>", f.ID, f.Name, last.TreeHash, currentTreeHash, f.ID)
 	}
 	return ""
 }
@@ -706,7 +713,7 @@ func ticketBlockedByReasons(featureName string, tickets []ticketInfo) []string {
 	var reasons []string
 	for _, t := range tickets {
 		if !t.BlockedByValid {
-			reasons = append(reasons, fmt.Sprintf("ticket %s de la feature %s tiene Blocked by no interpretable (%q): ni números de ticket de dos dígitos ni \"none\", o referencia un ticket inexistente", t.Filename, featureName, t.BlockedByRaw))
+			reasons = append(reasons, fmt.Sprintf("ticket %s de la feature %s tiene Blocked by no interpretable (%q): ni números de ticket de dos dígitos ni \"none\", o referencia un ticket inexistente — el formato esperado es números de ticket de dos dígitos separados por coma, ej. \"01, 02\", o la palabra \"none\" si no tiene bloqueadores; editar el campo **Blocked by:** de %s", t.Filename, featureName, t.BlockedByRaw, t.Filename))
 		}
 	}
 	return reasons
@@ -777,7 +784,20 @@ func detectBlockedByCycle(featureName string, tickets []ticketInfo) string {
 	if cycle == nil {
 		return ""
 	}
-	return fmt.Sprintf("ciclo detectado en Blocked by de tickets de %s: %s", featureName, strings.Join(cycle, " → "))
+
+	// Resuelve el primer NN de la cadena detectada a su Filename real, para
+	// que la receta nombre al menos un archivo concreto a editar (ver spec,
+	// "Recetas a agregar, caso por caso" — sin estructura ni archivo nuevo,
+	// el mapeo se arma aquí mismo con el tickets []ticketInfo ya recibido).
+	filenameByNN := map[string]string{}
+	for _, t := range tickets {
+		if t.NN != "" {
+			filenameByNN[t.NN] = t.Filename
+		}
+	}
+	firstFilename := filenameByNN[cycle[0]]
+
+	return fmt.Sprintf("ciclo detectado en Blocked by de tickets de %s: %s — editar el campo **Blocked by:** de %s (o de otro ticket de la cadena) para quitar o corregir la referencia que cierra el ciclo", featureName, strings.Join(cycle, " → "), firstFilename)
 }
 
 // indexOfString devuelve el índice de v en s, o -1 si no está.

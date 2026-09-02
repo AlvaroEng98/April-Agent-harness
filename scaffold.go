@@ -16,10 +16,15 @@ import (
 
 // Se embeben el tooling (idéntico al que dogfoodea este repo) y el directorio
 // templates/, que contiene el LIENZO LIMPIO de los archivos con estado
-// (feature_list.json, progress/, docs/, .gitignore). El estado de trabajo del
-// propio harness vive en la raíz (feature_list.json, progress/, docs/,
-// .gitignore) y NO se embebe: así cada `harness init` genera un proyecto en
-// limpio, no la bitácora ni las reglas de ignore del harness. El .gitignore
+// (feature_list.json, progress/, docs/, .gitignore, session-handoff.md). El
+// estado de trabajo del propio harness vive en la raíz (feature_list.json,
+// progress/, docs/, .gitignore, session-handoff.md) y NO se embebe: así cada
+// `harness init` genera un proyecto en limpio, no la bitácora ni las reglas
+// de ignore del harness. session-handoff.md real de la raíz trae el
+// historial de sesión de este propio repo (features resueltas, decisiones,
+// referencias a ROADMAP.md) — por eso vive aparte, en
+// templates/session-handoff.md, con un placeholder neutro sin datos
+// específicos del historial real. El .gitignore
 // de la raíz de este repo tiene reglas propias del desarrollo del harness
 // (OS, IDE, build de Go, notas de sesión) que no aplican al proyecto
 // scaffoldeado; por eso el template vive aparte, en templates/.gitignore, con
@@ -30,7 +35,7 @@ import (
 // scaffoldea. CHANGELOG.md tampoco tiene plantilla: el proyecto scaffoldeado
 // no arranca con changelog propio.
 //
-//go:embed .claude AGENTS.md CLAUDE.md init.sh session-handoff.md CHECKPOINTS.md all:templates
+//go:embed .claude AGENTS.md CLAUDE.md init.sh CHECKPOINTS.md all:templates
 var templateFS embed.FS
 
 // manifestSchemaVersion es la versión del formato de .claude/manifest.json.

@@ -1655,3 +1655,320 @@ func TestCicloEnBlockedByDeTicketsSeDetectaYNoCuelga(t *testing.T) {
 		t.Fatal("computeStatusFromFS no terminó en 5s — posible recursión sin límite frente a un ciclo en Blocked by")
 	}
 }
+
+// ---- Ticket 01 (feature 15, blocked_reasons_remedy_commands): test de
+// caracterización — MUST correr y pasar en verde ANTES de que exista
+// ningún cambio en computeBlockedReasons/sus cinco helpers. Fija con
+// igualdad exacta de string (o, para los dos casos con treeHash dinámico,
+// por prefijo hasta el patrón conocido) el texto que produce HOY el
+// código para los diez mensajes que la feature 15 va a tocar — ver
+// specs/blocked_reasons_remedy_commands/spec.md, "Mensajes literales
+// actuales". Reutiliza, sin modificarlos, los fixtures ya existentes de
+// más arriba en este archivo. Pasa exclusivamente por
+// computeStatusFromFS — nunca invoca noTestEvidenceReason/
+// noReviewVerdictReason/ticketBlockedByReasons/detectBlockedByCycle en
+// aislamiento.
+
+// findReasonContaining devuelve la única entrada de reasons que contiene
+// substr, o falla el test si no hay ninguna o hay más de una — así cada
+// subtest queda protegido de ambigüedad si el fixture llegara a producir
+// dos entradas con la misma substring por error.
+func findReasonContaining(t *testing.T, reasons []string, substr string) string {
+	t.Helper()
+	var matches []string
+	for _, r := range reasons {
+		if strings.Contains(r, substr) {
+			matches = append(matches, r)
+		}
+	}
+	if len(matches) != 1 {
+		t.Fatalf("se esperaba exactamente una entrada de blockedReasons conteniendo %q, se encontraron %d: %v (reasons completos: %v)", substr, len(matches), matches, reasons)
+	}
+	return matches[0]
+}
+
+func TestCaracterizacionMensajesBlockedReasonsAntesDeRecetas(t *testing.T) {
+	// Caso 1: in_progress duplicado (mismo fixture que
+	// TestDosFeaturesInProgressReportaBlockedReasons).
+	t.Run("in_progress duplicado", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 2, "name": "april_status_arbiter", "title": "t", "sdd": false, "status": "in_progress"},` +
+					`{"id": 3, "name": "claude_md_routes_by_status", "title": "t", "sdd": false, "status": "in_progress"}`,
+			)},
+		}
+		report, err := computeStatusFromFS(fsys, nil)
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "hay 2 features en in_progress a la vez (máximo 1 permitido por one_feature_at_a_time)"
+		got := findReasonContaining(t, report.BlockedReasons, "in_progress a la vez")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "2, 3") {
+			t.Errorf("mensaje = %q, se esperaba que listara los ids en conflicto (2, 3)", got)
+		}
+		if !strings.Contains(got, "april feature set-status <id> pending") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april feature set-status <id> pending`", got)
+		}
+	})
+
+	// Caso 2: no_test_evidence sin receipt (mismo fixture que
+	// TestSinReceiptParaFeatureInProgressReportaNoTestEvidence).
+	t.Run("no_test_evidence sin receipt", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 5, "name": "verify_record_ledger", "title": "t", "sdd": false, "status": "in_progress"}`,
+			)},
+		}
+		report, err := computeStatusFromFS(fsys, intPtr(5))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 5 (verify_record_ledger) está in_progress pero no tiene ningún receipt kind:test en .claude/verify-ledger.jsonl (no_test_evidence)"
+		got := findReasonContaining(t, report.BlockedReasons, "no_test_evidence")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april verify record --feature 5 -- <comando>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april verify record --feature 5 -- <comando>`", got)
+		}
+	})
+
+	// Caso 3: no_test_evidence con exitCode != 0 (mismo fixture que
+	// TestReceiptConExitDistintoDeCeroReportaNoTestEvidence).
+	t.Run("no_test_evidence con exitCode != 0", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 5, "name": "verify_record_ledger", "title": "t", "sdd": false, "status": "in_progress"}`,
+			)},
+		}
+		entry := ledgerEntry{Kind: "test", FeatureID: 5, ExitCode: 1, TreeHash: "cualquiera", Timestamp: "2026-08-27T20:00:00Z"}
+		fsys[".claude/verify-ledger.jsonl"] = &fstest.MapFile{Data: []byte(ledgerLine(t, entry))}
+
+		report, err := computeStatusFromFS(fsys, intPtr(5))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 5 (verify_record_ledger) está in_progress pero su último receipt kind:test tiene exitCode 1 != 0 (no_test_evidence)"
+		got := findReasonContaining(t, report.BlockedReasons, "no_test_evidence")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april verify record --feature 5 -- <comando>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april verify record --feature 5 -- <comando>`", got)
+		}
+	})
+
+	// Caso 4: no_test_evidence con treeHash desactualizado (mismo fixture
+	// que TestReceiptExitosoConArbolDesactualizadoReportaNoTestEvidence) —
+	// treeHash dinámico: se compara el prefijo hasta el patrón conocido, no
+	// el literal completo.
+	t.Run("no_test_evidence con treeHash desactualizado", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 5, "name": "verify_record_ledger", "title": "t", "sdd": false, "status": "in_progress"}`,
+			)},
+		}
+		oldHash, err := hashTree(fstest.MapFS{"status.go": &fstest.MapFile{Data: []byte("package main\n// version vieja\n")}})
+		if err != nil {
+			t.Fatalf("hashTree falló: %v", err)
+		}
+		entry := ledgerEntry{Kind: "test", FeatureID: 5, ExitCode: 0, TreeHash: oldHash, Timestamp: "2026-08-27T20:00:00Z"}
+		fsys[".claude/verify-ledger.jsonl"] = &fstest.MapFile{Data: []byte(ledgerLine(t, entry))}
+
+		report, err := computeStatusFromFS(fsys, intPtr(5))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 5 (verify_record_ledger) está in_progress pero el treeHash de su último receipt kind:test ("
+		got := findReasonContaining(t, report.BlockedReasons, "no_test_evidence")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april verify record --feature 5 -- <comando>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april verify record --feature 5 -- <comando>`", got)
+		}
+	})
+
+	// Caso 5: no_review_verdict sin receipt (mismo fixture que
+	// TestSinEntradaReviewParaFeatureInProgressReportaNoReviewVerdict).
+	t.Run("no_review_verdict sin receipt", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 6, "name": "review_verdict_recorded", "title": "t", "sdd": true, "status": "in_progress"}`,
+			)},
+			"specs/review_verdict_recorded/spec.md": &fstest.MapFile{Data: []byte("# spec\n")},
+		}
+		currentHash, err := hashTree(fsys)
+		if err != nil {
+			t.Fatalf("hashTree falló: %v", err)
+		}
+		entry := ledgerEntry{Kind: "test", FeatureID: 6, ExitCode: 0, TreeHash: currentHash, Timestamp: "2026-08-28T10:00:00Z"}
+		fsys[".claude/verify-ledger.jsonl"] = &fstest.MapFile{Data: []byte(ledgerLine(t, entry))}
+
+		report, err := computeStatusFromFS(fsys, intPtr(6))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 6 (review_verdict_recorded) está in_progress pero no tiene ningún receipt kind:review en .claude/verify-ledger.jsonl (no_review_verdict)"
+		got := findReasonContaining(t, report.BlockedReasons, "no_review_verdict")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april review record --feature 6 --verdict <valor>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april review record --feature 6 --verdict <valor>`", got)
+		}
+		for _, valor := range []string{"APPROVED", "APPROVED_WITH_OBJECTION", "CHANGES_REQUESTED"} {
+			if !strings.Contains(got, valor) {
+				t.Errorf("mensaje = %q, se esperaba que mencionara el valor válido %q", got, valor)
+			}
+		}
+	})
+
+	// Caso 6: no_review_verdict con verdict que no habilita cierre (mismo
+	// fixture que TestReviewChangesRequestedConHashVigenteReportaNoReviewVerdict).
+	t.Run("no_review_verdict con verdict que no habilita cierre", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 6, "name": "review_verdict_recorded", "title": "t", "sdd": true, "status": "in_progress"}`,
+			)},
+			"specs/review_verdict_recorded/spec.md": &fstest.MapFile{Data: []byte("# spec\n")},
+		}
+		currentHash, err := hashTree(fsys)
+		if err != nil {
+			t.Fatalf("hashTree falló: %v", err)
+		}
+		entry := ledgerEntry{Kind: "review", FeatureID: 6, TreeHash: currentHash, Timestamp: "2026-08-28T10:00:00Z", Verdict: verdictChangesRequested}
+		fsys[".claude/verify-ledger.jsonl"] = &fstest.MapFile{Data: []byte(ledgerLine(t, entry))}
+
+		report, err := computeStatusFromFS(fsys, intPtr(6))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := `feature 6 (review_verdict_recorded) está in_progress pero su último receipt kind:review tiene verdict "CHANGES_REQUESTED", que no habilita cierre (no_review_verdict)`
+		got := findReasonContaining(t, report.BlockedReasons, "no_review_verdict")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april review record --feature 6 --verdict <valor>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april review record --feature 6 --verdict <valor>`", got)
+		}
+		receta := strings.TrimPrefix(got, wantPrefix)
+		if !strings.Contains(receta, "APPROVED, APPROVED_WITH_OBJECTION") {
+			t.Errorf("mensaje = %q, se esperaba que la receta acotara los valores a APPROVED/APPROVED_WITH_OBJECTION", got)
+		}
+	})
+
+	// Caso 7: no_review_verdict con treeHash desactualizado (mismo fixture
+	// que TestReviewApprovedConHashDesactualizadoReportaNoReviewVerdict) —
+	// treeHash dinámico: prefijo, no literal completo.
+	t.Run("no_review_verdict con treeHash desactualizado", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 6, "name": "review_verdict_recorded", "title": "t", "sdd": true, "status": "in_progress"}`,
+			)},
+			"specs/review_verdict_recorded/spec.md": &fstest.MapFile{Data: []byte("# spec\n")},
+		}
+		oldHash, err := hashTree(fstest.MapFS{"status.go": &fstest.MapFile{Data: []byte("package main\n// version vieja\n")}})
+		if err != nil {
+			t.Fatalf("hashTree falló: %v", err)
+		}
+		entry := ledgerEntry{Kind: "review", FeatureID: 6, TreeHash: oldHash, Timestamp: "2026-08-28T10:00:00Z", Verdict: verdictApproved}
+		fsys[".claude/verify-ledger.jsonl"] = &fstest.MapFile{Data: []byte(ledgerLine(t, entry))}
+
+		report, err := computeStatusFromFS(fsys, intPtr(6))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 6 (review_verdict_recorded) está in_progress pero el treeHash de su último receipt kind:review ("
+		got := findReasonContaining(t, report.BlockedReasons, "no_review_verdict")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "april review record --feature 6 --verdict <valor>") {
+			t.Errorf("mensaje = %q, se esperaba el comando `april review record --feature 6 --verdict <valor>`", got)
+		}
+	})
+
+	// Caso 8: ticket con Blocked by no interpretable (mismo fixture que
+	// TestBlockedByConTextoNoInterpretableReportaBlockedReasons).
+	t.Run("Blocked by no interpretable", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 2, "name": "april_status_arbiter", "title": "t", "sdd": true, "status": "in_progress"}`,
+			)},
+			"specs/april_status_arbiter/spec.md":              &fstest.MapFile{Data: []byte("# spec\n")},
+			"specs/april_status_arbiter/tickets/01-nucleo.md": &fstest.MapFile{Data: []byte("# 01\n\n**Blocked by:** algo raro sin numero\n\n**Status:** pending\n")},
+		}
+		report, err := computeStatusFromFS(fsys, nil)
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := `ticket 01-nucleo.md de la feature april_status_arbiter tiene Blocked by no interpretable ("algo raro sin numero"): ni números de ticket de dos dígitos ni "none", o referencia un ticket inexistente`
+		got := findReasonContaining(t, report.BlockedReasons, "01-nucleo.md")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "números de ticket de dos dígitos separados por coma") {
+			t.Errorf("mensaje = %q, se esperaba que explicara el formato esperado de Blocked by", got)
+		}
+		if !strings.Contains(got, "**Blocked by:** de 01-nucleo.md") {
+			t.Errorf("mensaje = %q, se esperaba que repitiera el archivo a editar (01-nucleo.md)", got)
+		}
+	})
+
+	// Caso 9: ciclo en Blocked by (mismo fixture que
+	// TestCicloEnBlockedByDeTicketsSeDetectaYNoCuelga) — el orden de DFS
+	// sobre fstest.MapFS (que itera directorios en orden alfabético) visita
+	// primero 02, produciendo la cadena "02 → 03 → 02".
+	t.Run("ciclo en Blocked by", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 2, "name": "april_status_arbiter", "title": "t", "sdd": true, "status": "in_progress"}`,
+			)},
+			"specs/april_status_arbiter/spec.md":                &fstest.MapFile{Data: []byte("# spec\n")},
+			"specs/april_status_arbiter/tickets/02-frontier.md": &fstest.MapFile{Data: []byte("# 02\n\n**Blocked by:** 03\n\n**Status:** pending\n")},
+			"specs/april_status_arbiter/tickets/03-cli.md":      &fstest.MapFile{Data: []byte("# 03\n\n**Blocked by:** 02\n\n**Status:** pending\n")},
+		}
+		report, err := computeStatusFromFS(fsys, nil)
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "ciclo detectado en Blocked by de tickets de april_status_arbiter: 02 → 03 → 02"
+		got := findReasonContaining(t, report.BlockedReasons, "ciclo detectado")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "**Blocked by:** de 02-frontier.md") {
+			t.Errorf("mensaje = %q, se esperaba que nombrara un archivo concreto de la cadena (02-frontier.md)", got)
+		}
+	})
+
+	// Caso 10: no_gwt_coverage (mismo fixture que
+	// TestSpecSinGWTNiMarcadorNiTicketsReportaNoGwtCoverage).
+	t.Run("no_gwt_coverage", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			"feature_list.json": &fstest.MapFile{Data: testFeatureListJSON(
+				`{"id": 20, "name": "feature_sin_gwt", "title": "t", "sdd": true, "status": "pending"}`,
+			)},
+			"specs/feature_sin_gwt/spec.md": &fstest.MapFile{Data: []byte("# spec\n\nProsa sin bloques Given/When/Then.\n")},
+		}
+		report, err := computeStatusFromFS(fsys, intPtr(20))
+		if err != nil {
+			t.Fatalf("computeStatusFromFS falló: %v", err)
+		}
+		wantPrefix := "feature 20 (feature_sin_gwt) tiene specs/feature_sin_gwt/spec.md sin ningún bloque Given/When/Then ni el marcador <!-- gwt: no aplica --> (no_gwt_coverage)"
+		got := findReasonContaining(t, report.BlockedReasons, "no_gwt_coverage")
+		if !strings.HasPrefix(got, wantPrefix) {
+			t.Errorf("mensaje = %q, se esperaba que empezara con %q", got, wantPrefix)
+		}
+		if !strings.Contains(got, "agregar al menos un bloque Given/When/Then") {
+			t.Errorf("mensaje = %q, se esperaba la instrucción de agregar un bloque Given/When/Then", got)
+		}
+		if !strings.Contains(got, "<!-- gwt: no aplica -->") {
+			t.Errorf("mensaje = %q, se esperaba que mencionara el marcador de opt-out", got)
+		}
+	})
+}
